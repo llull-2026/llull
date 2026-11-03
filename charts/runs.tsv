@@ -1,0 +1,66 @@
+comb_wt_be_m1	normal	comb --well-typed --variants --strategy shell --max-size 10 --max-inst 1
+comb_wt_enum_m1	normal	comb --well-typed --variants --strategy triangle --max-inst 1
+comb_ill_be_m1	normal	comb --ill-typed --variants --strategy shell --max-size 10 --max-inst 1
+comb_ill_enum_m1	normal	comb --ill-typed --variants --strategy triangle --max-inst 1
+comb_wt_be_concrete	normal	comb-concrete --well-typed --variants --strategy shell --max-size 10
+fj_wt_be_m1	normal	fj --well-typed --variants --strategy shell --max-size 8 --max-inst 1
+fj_wt_enum_m1	normal	fj --well-typed --variants --strategy triangle --max-inst 1
+fj_ill_be_m1	normal	fj --ill-typed --variants --strategy shell --max-size 8 --max-inst 1
+fj_ill_enum_m1	normal	fj --ill-typed --variants --strategy triangle --max-inst 1
+fj_wt_be_concrete	normal	fj-concrete --well-typed --variants --strategy shell --max-size 8
+comb_wt_rand	normal	comb --well-typed --variants --mode random-persistent --max-size 8 --stop-prob 0.85 --max-inst 1 --seed 195626534
+comb_ill_rand	normal	comb --ill-typed --variants --mode random-persistent --max-size 8 --stop-prob 0.85 --max-inst 1 --seed 141015571
+fj_wt_rand	normal	fj --well-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --max-inst 10 --seed 1058097396
+fj_ill_rand	normal	fj --ill-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --max-inst 10 --seed 557671641
+heph_wt_be_m1	normal	heph --well-typed --variants --strategy shell --max-size 8 --max-inst 1
+heph_wt_be_m10	normal	heph --well-typed --variants --strategy shell --max-size 8 --max-inst 10
+heph_wt_be_m100	normal	heph --well-typed --variants --strategy shell --max-size 8 --max-inst 100
+heph_wt_be_concrete	normal	heph-concrete --well-typed --variants --strategy shell --max-size 8
+heph_wt_enum_m1	normal	heph --well-typed --variants --strategy triangle --max-inst 1
+heph_wt_enum_m10	normal	heph --well-typed --variants --strategy triangle --max-inst 10
+heph_wt_enum_m100	normal	heph --well-typed --variants --strategy triangle --max-inst 100
+heph_wt_enum_concrete	normal	heph-concrete --well-typed --variants --strategy triangle
+heph_wt_rand_concrete	normal	heph-concrete --well-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --seed 195626534
+heph_wt_rand_m1	normal	heph --well-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 1 --seed 195626534
+heph_wt_rand_m10	normal	heph --well-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 10 --seed 764446978
+heph_wt_rand_m100	normal	heph --well-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 100 --seed 195626534
+heph_ill_be_m1	normal	heph --ill-typed --variants --strategy shell --max-size 8 --max-inst 1
+heph_ill_be_m10	normal	heph --ill-typed --variants --strategy shell --max-size 8 --max-inst 10
+heph_ill_be_m100	normal	heph --ill-typed --variants --strategy shell --max-size 8 --max-inst 100
+heph_ill_be_concrete	normal	heph-concrete --ill-typed --variants --strategy shell --max-size 8
+heph_ill_enum_m1	normal	heph --ill-typed --variants --strategy triangle --max-inst 1
+heph_ill_enum_m10	normal	heph --ill-typed --variants --strategy triangle --max-inst 10
+heph_ill_enum_m100	normal	heph --ill-typed --variants --strategy triangle --max-inst 100
+heph_ill_enum_concrete	normal	heph-concrete --ill-typed --variants --strategy triangle
+heph_ill_rand_concrete	normal	heph-concrete --ill-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --seed 195626534
+heph_ill_rand_m1	normal	heph --ill-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 1 --seed 195626534
+heph_ill_rand_m10	normal	heph --ill-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 10 --seed 518085207
+heph_ill_rand_m100	normal	heph --ill-typed --variants --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 100 --seed 557671641
+hephrw_wt_enum_m1	normal	heph --real-world --well-typed --strategy triangle --max-inst 1
+hephrw_wt_enum_dovetail_m1	normal	heph --real-world --well-typed --strategy triangle --dovetail --max-inst 1
+hephrw_wt_rand	normal	heph --real-world --well-typed --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 1 --seed 195626534
+hephrw_ill_enum_m1	normal	heph --real-world --ill-typed --strategy triangle --max-inst 1
+hephrw_ill_enum_dovetail_m1	normal	heph --real-world --ill-typed --strategy triangle --dovetail --max-inst 1
+hephrw_ill_rand	normal	heph --real-world --ill-typed --mode random-fresh --max-size 8 --stop-prob 0.85 --term-time 0.1 --max-inst 1 --seed 195626534
+fj_ill_rand_m1_s195626534_oom	oom	fj --ill-typed --variants --mode random-persistent --max-size 8 --stop-prob 0.85 --max-inst 1 --seed 195626534
+fj_wt_enum_m1_oom	oom	fj --well-typed --variants --strategy triangle --max-inst 1
+heph_wt_enum_m1_oom	oom	heph --well-typed --variants --strategy triangle --term-time 0.1 --max-inst 1
+heph_wt_enum_m1_uncapped_oom	oom	heph --well-typed --variants --strategy triangle --max-inst 1
+heph_ill_enum_m1_oom	oom	heph --ill-typed --variants --strategy triangle --term-time 0.1 --max-inst 1
+hephrw_ill_enum_m1_oom	oom	heph --real-world --ill-typed --strategy triangle --max-inst 1
+hephrw_wt_enum_m1_oom	oom	heph --real-world --well-typed --strategy triangle --max-inst 1
+comb_ill_be_m1_oom	oom	comb --ill-typed --variants --strategy shell --max-size 10 --max-inst 1
+comb_wt_be_m1_oom	oom	comb --well-typed --variants --strategy shell --max-size 10 --max-inst 1
+heph_ill_be_m1_oom	oom	heph --ill-typed --variants --strategy shell --max-size 8 --term-time 0.1 --max-inst 1
+comb_wt_be_m1_vs_breccia_u-e7	breccia	comb_wt_be_m1 comb -u esize=7 tsize=2 varid=1
+comb_wt_be_m1_vs_breccia_u-e6	breccia	comb_wt_be_m1 comb -u esize=6 tsize=2 varid=1
+comb_wt_be_m1_vs_breccia_e5	breccia	comb_wt_be_m1 comb esize=5 tsize=2 varid=1
+fj_wt_be_m1_vs_breccia_nm-e3-d2	breccia	fj_wt_be_m1 fj nummethods=0 esize=3 classdepth=2
+fj_wt_be_m1_vs_breccia_nm-e3-c3	breccia	fj_wt_be_m1 fj nummethods=0 esize=3 numclasses=3
+fj_wt_be_m1_vs_breccia_nm-e3	breccia	fj_wt_be_m1 fj nummethods=0 esize=3
+fj_wt_be_m1_vs_breccia_nm-e3-c3-d2	breccia	fj_wt_be_m1 fj nummethods=0 esize=3 numclasses=3 classdepth=2
+fj_wt_be_m1_vs_breccia_u-nm-e3-c3-d2	breccia	fj_wt_be_m1 fj -u nummethods=0 esize=3 numclasses=3 classdepth=2
+heph_wt_be_m1_vs_breccia_u-nomethods-e4	breccia	heph_wt_be_m1 heph -u nummethods=0 esize=4
+heph_wt_be_m1_vs_breccia_nomethods	breccia	heph_wt_be_m1 heph nummethods=0 esize=3
+heph_wt_be_m1_vs_breccia_u-nogeneric	breccia	heph_wt_be_m1 heph -u numtparams=0 esize=3
+heph_wt_be_m1_vs_breccia_defaults	breccia	heph_wt_be_m1 heph

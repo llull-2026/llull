@@ -1,0 +1,414 @@
+// RefMut: System F with references, mutation, integers and integer lists.
+//
+// This follows llull's comb language (llull/langs/comb): the typing rules are
+// those of bug-suite/combTypechecker.ml. Types use de Bruijn type variables,
+// as there, so two types are equal exactly when they are the same value.
+//
+// Types are generated freely and checked where they are used. Terms name their
+// free variables, like STLC's, and a lambda binds one of them. A RefMut value
+// is a closed term.
+//
+// The tracking is what makes a term replaceable: two terms with the same
+// tracking and size can stand in for each other anywhere, so running with
+// -u Term merges them. A term determines its tracking, so merging is sound.
+
+// Bounds a..b include b.
+bound tsize = 1..3       // nodes in a type
+bound esize = 1..5       // nodes in a term
+bound tyvarid = 0..1     // de Bruijn type variables T0, T1, ...
+bound varid = 0..1       // term variables x0, x1, ...
+bound intlit = 0..2      // integer literals
+
+// ---------------------------------------------------------------------------
+// Types
+
+datatype Type bounded_by (tsize: tsize) tracking () = {
+  | IntTy
+  | UnitTy
+  | ListTy
+  | Arrow(Type, Type)
+  | Ref(Type)
+  | Forall(Type)
+  | TyVar(tyvarid)
+}
+
+def type_size(t: Type) -> Int = {
+  t match {
+    | IntTy() => 1
+    | UnitTy() => 1
+    | ListTy() => 1
+    | Arrow(a, b) => 1 + type_size(a) + type_size(b)
+    | Ref(a) => 1 + type_size(a)
+    | Forall(a) => 1 + type_size(a)
+    | TyVar(i) => 1
+  }
+}
+
+def Type.bound -> tsize = {
+  type_size(self)
+}
+
+generator makeint() -> #Type = {
+  IntTy() tracking ()
+}
+
+generator makeunit() -> #Type = {
+  UnitTy() tracking ()
+}
+
+generator makelist() -> #Type = {
+  ListTy() tracking ()
+}
+
+generator makearrow(a: #Type, b: #Type) -> #Type = {
+  Arrow(a, b) tracking ()
+}
+
+generator makeref(a: #Type) -> #Type = {
+  Ref(a) tracking ()
+}
+
+generator makeforall(a: #Type) -> #Type = {
+  Forall(a) tracking ()
+}
+
+generator maketyvar(i: tyvarid) -> #Type = {
+  TyVar(i) tracking ()
+}
+
+def larger(a: Int, b: Int) -> Int = {
+  if (a > b) { a } else { b }
+}
+
+// How many enclosing type binders t needs, with k binders inside it.
+def needs(t: Type, k: Int) -> Int = {
+  t match {
+    | IntTy() => 0
+    | UnitTy() => 0
+    | ListTy() => 0
+    | Arrow(a, b) => larger(needs(a, k), needs(b, k))
+    | Ref(a) => needs(a, k)
+    | Forall(a) => needs(a, k + 1)
+    | TyVar(i) => if (i < k) { 0 } else { 1 + i - k }
+  }
+}
+
+// Adds d to the type variables of t that are free, i.e. at least c.
+def shift(t: Type, c: Int, d: Int) -> Type = {
+  t match {
+    | IntTy() => IntTy()
+    | UnitTy() => UnitTy()
+    | ListTy() => ListTy()
+    | Arrow(a, b) => Arrow(shift(a, c, d), shift(b, c, d))
+    | Ref(a) => Ref(shift(a, c, d))
+    | Forall(a) => Forall(shift(a, c + 1, d))
+    | TyVar(i) => if (i < c) { TyVar(i) } else { TyVar(i + d) }
+  }
+}
+
+// Replaces type variable k of t with s, which is under k binders there, and
+// renumbers the free variables above k.
+def subst(t: Type, k: Int, s: Type) -> Type = {
+  t match {
+    | IntTy() => IntTy()
+    | UnitTy() => UnitTy()
+    | ListTy() => ListTy()
+    | Arrow(a, b) => Arrow(subst(a, k, s), subst(b, k, s))
+    | Ref(a) => Ref(subst(a, k, s))
+    | Forall(a) => Forall(subst(a, k + 1, s))
+    | TyVar(i) =>
+      if (i == k) {
+        shift(s, 0, k)
+      } else {
+        if (i > k) { TyVar(i - 1) } else { TyVar(i) }
+      }
+  }
+}
+
+// Whether type variable k occurs free in t.
+def mentions(t: Type, k: Int) -> Bool = {
+  t match {
+    | IntTy() => false
+    | UnitTy() => false
+    | ListTy() => false
+    | Arrow(a, b) => mentions(a, k) || mentions(b, k)
+    | Ref(a) => mentions(a, k)
+    | Forall(a) => mentions(a, k + 1)
+    | TyVar(i) => if (i == k) { true } else { false }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Environments
+
+// Variables bound to their types, sorted by variable.
+datatype Env = {
+  | Nil
+  | Bind(varid, Type, Env)
+}
+
+def lookup(env: Env, x: varid) -> Type = {
+  filter Bind(y, t, rest) is env
+  if (x == y) { t } else { lookup(rest, x) }
+}
+
+def remove(env: Env, x: varid) -> Env = {
+  env match {
+    | Nil() => Nil()
+    | Bind(y, t, rest) => if (x == y) { rest } else { Bind(y, t, remove(rest, x)) }
+  }
+}
+
+// The union of two environments; fails if they give a variable two types.
+def merge(env1: Env, env2: Env) -> Env = {
+  env1 match {
+    | Nil() => env2
+    | Bind(x, t, rest1) => env2 match {
+      | Nil() => env1
+      | Bind(y, u, rest2) =>
+        if (x < y) {
+          Bind(x, t, merge(rest1, env2))
+        } else {
+          if (y < x) {
+            Bind(y, u, merge(env1, rest2))
+          } else {
+            if (t == u) { Bind(x, t, merge(rest1, rest2)) }
+          }
+        }
+    }
+  }
+}
+
+// The environment seen outside a type abstraction; fails if a type in it
+// mentions the abstracted variable.
+def unshift_env(env: Env) -> Env = {
+  env match {
+    | Nil() => Nil()
+    | Bind(x, t, rest) =>
+      if (mentions(t, 0)) { fail } else { Bind(x, shift(t, 0, 0 - 1), unshift_env(rest)) }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Terms
+
+// Built-in constants, with their types.
+datatype Constant bounded_by () tracking (typ: Type) = {
+  | CInt(intlit)
+  | CUnit
+  | CNil
+  | CCons
+  | CHd
+  | CTl
+  | CPlus
+}
+
+generator makeintlit(n: intlit) -> #Constant = {
+  CInt(n) tracking (typ: IntTy())
+}
+
+generator makeunitlit() -> #Constant = {
+  CUnit() tracking (typ: UnitTy())
+}
+
+generator makenil() -> #Constant = {
+  CNil() tracking (typ: ListTy())
+}
+
+generator makecons() -> #Constant = {
+  CCons() tracking (typ: Arrow(IntTy(), Arrow(ListTy(), ListTy())))
+}
+
+generator makehd() -> #Constant = {
+  CHd() tracking (typ: Arrow(ListTy(), IntTy()))
+}
+
+generator maketl() -> #Constant = {
+  CTl() tracking (typ: Arrow(ListTy(), ListTy()))
+}
+
+generator makeplus() -> #Constant = {
+  CPlus() tracking (typ: Arrow(IntTy(), Arrow(IntTy(), IntTy())))
+}
+
+// A term's tyvars is how many enclosing type binders it needs.
+datatype Term bounded_by (esize: esize) tracking (typ: Type, freevars: Env, tyvars: Int, size: Int) = {
+  | Var(Type, varid)
+  | Lam(Type, varid, Term)
+  | App(Term, Term)
+  | Const(Constant)
+  | TyLam(Term)
+  | TyApp(Term, Type)
+  | MkRef(Term)
+  | Deref(Term)
+  | Assign(Term, Term)
+  | Seq(Term, Term)
+  | Minus(Term, Term)
+  | Ifz(Term, Term, Term)
+}
+
+def term_size(e: Term) -> Int = {
+  e match {
+    | Var(t, x) => 1
+    | Lam(t, x, e') => 1 + term_size(e')
+    | App(e1, e2) => 1 + term_size(e1) + term_size(e2)
+    | Const(c) => 1
+    | TyLam(e') => 1 + term_size(e')
+    | TyApp(e', t) => 1 + term_size(e')
+    | MkRef(e') => 1 + term_size(e')
+    | Deref(e') => 1 + term_size(e')
+    | Assign(e1, e2) => 1 + term_size(e1) + term_size(e2)
+    | Seq(e1, e2) => 1 + term_size(e1) + term_size(e2)
+    | Minus(e1, e2) => 1 + term_size(e1) + term_size(e2)
+    | Ifz(e1, e2, e3) => 1 + term_size(e1) + term_size(e2) + term_size(e3)
+  }
+}
+
+def Term.bound -> esize = {
+  term_size(self)
+}
+
+// Pairs of sizes (m, n) such that a node with children of those sizes fits
+// within esize. Combining two terms joins on their sizes through Fits, so
+// pairs too large to combine are never formed. Its bound is written inline
+// rather than as a single call, so that `expanding esize` keeps measuring
+// terms with term_size.
+datatype Fits bounded_by (esize: esize) tracking () = {
+  | Fit(Int, Int)
+}
+
+def Fits.bound -> esize = {
+  filter Fit(m, n) is self
+  1 + m + n
+}
+
+generator makefit(m: esize, n: esize) -> #Fits = {
+  Fit(m, n) tracking ()
+}
+
+generator makevar(t: #Type, x: varid) -> #Term = {
+  Var(t, x) tracking (typ: t, freevars: Bind(x, t, Nil()), tyvars: needs(t, 0), size: 1)
+}
+
+generator makeconst(c: #Constant) -> #Term = {
+  Const(c) tracking (typ: c.typ, freevars: Nil(), tyvars: 0, size: 1)
+}
+
+// Abstracts the free variable x of e.
+generator makelam(body: #Term expanding esize, x: varid) -> #Term = {
+  let t = lookup(body.freevars, x)
+  Lam(t, x, body) tracking (typ: Arrow(t, body.typ), freevars: remove(body.freevars, x), tyvars: body.tyvars, size: body.size + 1)
+}
+
+generator makeapp(fn: #Term, arg: #Term, fit: #Fits) -> #Term = {
+  filter Fit(m, n) is fit
+  if (fn.size == m) {
+    if (arg.size == n) {
+      filter Arrow(a, b) is fn.typ
+      if (a == arg.typ) {
+        App(fn, arg) tracking (typ: b, freevars: merge(fn.freevars, arg.freevars), tyvars: larger(fn.tyvars, arg.tyvars), size: 1 + m + n)
+      }
+    }
+  }
+}
+
+// Abstracts type variable 0, which no free variable's type may mention.
+generator maketylam(poly: #Term expanding esize) -> #Term = {
+  TyLam(poly) tracking (typ: Forall(poly.typ), freevars: unshift_env(poly.freevars), tyvars: larger(poly.tyvars - 1, 0), size: poly.size + 1)
+}
+
+generator maketyapp(inst: #Term expanding esize, t: #Type) -> #Term = {
+  filter Forall(body) is inst.typ
+  TyApp(inst, t) tracking (typ: subst(body, 0, t), freevars: inst.freevars, tyvars: larger(inst.tyvars, needs(t, 0)), size: inst.size + 1)
+}
+
+generator makemkref(init: #Term expanding esize) -> #Term = {
+  MkRef(init) tracking (typ: Ref(init.typ), freevars: init.freevars, tyvars: init.tyvars, size: init.size + 1)
+}
+
+generator makederef(cell: #Term expanding esize) -> #Term = {
+  filter Ref(t) is cell.typ
+  Deref(cell) tracking (typ: t, freevars: cell.freevars, tyvars: cell.tyvars, size: cell.size + 1)
+}
+
+generator makeassign(target: #Term, value: #Term, fit: #Fits) -> #Term = {
+  filter Fit(m, n) is fit
+  if (target.size == m) {
+    if (value.size == n) {
+      filter Ref(t) is target.typ
+      if (t == value.typ) {
+        Assign(target, value) tracking (typ: UnitTy(), freevars: merge(target.freevars, value.freevars), tyvars: larger(target.tyvars, value.tyvars), size: 1 + m + n)
+      }
+    }
+  }
+}
+
+generator makeseq(first: #Term, second: #Term, fit: #Fits) -> #Term = {
+  filter Fit(m, n) is fit
+  if (first.size == m) {
+    if (second.size == n) {
+      filter UnitTy() is first.typ
+      Seq(first, second) tracking (typ: second.typ, freevars: merge(first.freevars, second.freevars), tyvars: larger(first.tyvars, second.tyvars), size: 1 + m + n)
+    }
+  }
+}
+
+generator makeminus(left: #Term, right: #Term, fit: #Fits) -> #Term = {
+  filter Fit(m, n) is fit
+  if (left.size == m) {
+    if (right.size == n) {
+      filter IntTy() is left.typ
+      filter IntTy() is right.typ
+      Minus(left, right) tracking (typ: IntTy(), freevars: merge(left.freevars, right.freevars), tyvars: larger(left.tyvars, right.tyvars), size: 1 + m + n)
+    }
+  }
+}
+
+// The branches of an ifz: two terms of the same type. They are bounded by
+// the size of the smallest ifz they can occur in, so that pairs too large to
+// use are rejected before being combined with a test.
+datatype Branches bounded_by (esize: esize) tracking (typ: Type, freevars: Env, tyvars: Int, size: Int) = {
+  | Branch(Term, Term)
+}
+
+// Written inline rather than as a single call, so that `expanding esize`
+// keeps measuring terms with term_size.
+def Branches.bound -> esize = {
+  filter Branch(yes, no) is self
+  2 + term_size(yes) + term_size(no)
+}
+
+// A pair's size is that of both branches together.
+generator makebranches(yes: #Term, no: #Term, fit: #Fits) -> #Branches = {
+  filter Fit(m, n) is fit
+  if (yes.size == m) {
+    if (no.size == n) {
+      if (yes.typ == no.typ) {
+        Branch(yes, no) tracking (typ: yes.typ, freevars: merge(yes.freevars, no.freevars), tyvars: larger(yes.tyvars, no.tyvars), size: m + n)
+      }
+    }
+  }
+}
+
+generator makeifz(test: #Term, br: #Branches, fit: #Fits) -> #Term = {
+  filter Fit(m, n) is fit
+  if (test.size == m) {
+    if (br.size == n) {
+      filter IntTy() is test.typ
+      filter Branch(yes, no) is br
+      Ifz(test, yes, no) tracking (typ: br.typ, freevars: merge(test.freevars, br.freevars), tyvars: larger(test.tyvars, br.tyvars), size: 1 + m + n)
+    }
+  }
+}
+
+// A whole program: a closed term.
+datatype RefMut bounded_by () tracking () = {
+  | Closed(Term)
+}
+
+generator makeclosed(e: #Term) -> #RefMut = {
+  filter Nil() is e.freevars
+  if (e.tyvars == 0) {
+    Closed(e) tracking ()
+  }
+}

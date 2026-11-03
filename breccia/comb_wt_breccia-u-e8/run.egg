@@ -1,0 +1,1226 @@
+(datatype*
+  (Type
+    (IntTy)
+    (UnitTy)
+    (ListTy)
+    (Arrow Type Type)
+    (Ref Type)
+    (Forall Type)
+    (TyVar i64)
+  )
+  (Env
+    (Nil)
+    (Bind i64 Type Env)
+  )
+  (Constant
+    (CInt i64)
+    (CUnit)
+    (CNil)
+    (CCons)
+    (CHd)
+    (CTl)
+    (CPlus)
+  )
+  (Term
+    (Var Type i64)
+    (Lam Type i64 Term)
+    (App Term Term)
+    (Const Constant)
+    (TyLam Term)
+    (TyApp Term Type)
+    (MkRef Term)
+    (Deref Term)
+    (Assign Term Term)
+    (Seq Term Term)
+    (Minus Term Term)
+    (Ifz Term Term Term)
+  )
+  (Fits
+    (Fit i64 i64)
+  )
+  (Branches
+    (Branch Term Term)
+  )
+  (RefMut
+    (Closed Term)
+  )
+)
+
+;; --- Relation Declarations ---
+
+(relation TypeTracking (Type))
+
+(relation TypeValid (Type))
+
+(relation ConstantTracking (Constant Type))
+
+(relation ConstantValid (Constant Type))
+
+(relation TermTracking (Term Type Env i64 i64))
+
+(relation TermValid (Term Type Env i64 i64))
+
+(relation FitsTracking (Fits))
+
+(relation FitsValid (Fits))
+
+(relation BranchesTracking (Branches Type Env i64 i64))
+
+(relation BranchesValid (Branches Type Env i64 i64))
+
+(relation RefMutTracking (RefMut))
+
+(relation RefMutValid (RefMut))
+
+(relation tsize (i64))
+
+(relation esize (i64))
+
+(relation tyvarid (i64))
+
+(relation varid (i64))
+
+(relation intlit (i64))
+
+(relation type_sizecall (Type))
+
+(relation type_size (Type i64))
+
+(relation TypetsizeBoundcall (Type))
+
+(relation TypetsizeBound (Type i64))
+
+(relation largercall (i64 i64))
+
+(relation larger (i64 i64 i64))
+
+(relation needscall (Type i64))
+
+(relation needs (Type i64 i64))
+
+(relation shiftcall (Type i64 i64))
+
+(relation shift (Type i64 i64 Type))
+
+(relation substcall (Type i64 Type))
+
+(relation subst (Type i64 Type Type))
+
+(relation mentionscall (Type i64))
+
+(relation mentions (Type i64 bool))
+
+(relation lookupcall (Env i64))
+
+(relation lookup (Env i64 Type))
+
+(relation removecall (Env i64))
+
+(relation remove (Env i64 Env))
+
+(relation mergecall (Env Env))
+
+(relation merge (Env Env Env))
+
+(relation unshift_envcall (Env))
+
+(relation unshift_env (Env Env))
+
+(relation term_sizecall (Term))
+
+(relation term_size (Term i64))
+
+(relation TermesizeBoundcall (Term Type Env i64 i64))
+
+(relation TermesizeBound (Term Type Env i64 i64 i64))
+
+(relation FitsesizeBoundcall (Fits))
+
+(relation FitsesizeBound (Fits i64))
+
+(relation BranchesesizeBoundcall (Branches Type Env i64 i64))
+
+(relation BranchesesizeBound (Branches Type Env i64 i64 i64))
+
+;; --- Rules and Facts ---
+
+(tsize 1)
+
+(rule
+ ((tsize x)
+    (< x 2))
+ ((tsize (+ x 1))))
+
+(esize 1)
+
+(rule
+ ((esize x)
+    (< x 8))
+ ((esize (+ x 1))))
+
+(tyvarid 0)
+
+(rule
+ ((tyvarid x)
+    (< x 1))
+ ((tyvarid (+ x 1))))
+
+(varid 0)
+
+(rule
+ ((varid x)
+    (< x 1))
+ ((varid (+ x 1))))
+
+(intlit 0)
+
+(rule
+ ((intlit x)
+    (< x 2))
+ ((intlit (+ x 1))))
+
+(rule
+ ((TypeValid v))
+ ((TypetsizeBoundcall v)))
+
+(rule
+ ((TypeValid v)
+    (TypetsizeBound v b0)
+    (tsize b0))
+ ((TypeTracking v)))
+
+(rule
+ ((ConstantValid v t0))
+ ((ConstantTracking v t0)))
+
+(rule
+ ((FitsValid v))
+ ((FitsesizeBoundcall v)))
+
+(rule
+ ((FitsValid v)
+    (FitsesizeBound v b0)
+    (esize b0))
+ ((FitsTracking v)))
+
+(rule
+ ((BranchesValid v t0 t1 t2 t3))
+ ((BranchesesizeBoundcall v t0 t1 t2 t3)))
+
+(rule
+ ((BranchesValid v t0 t1 t2 t3)
+    (BranchesesizeBound v t0 t1 t2 t3 b0)
+    (esize b0))
+ ((BranchesTracking v t0 t1 t2 t3)))
+
+(rule
+ ((TermValid v t0 t1 t2 t3))
+ ((TermesizeBoundcall v t0 t1 t2 t3)))
+
+(rule
+ ((TermValid v t0 t1 t2 t3)
+    (TermesizeBound v t0 t1 t2 t3 b0)
+    (esize b0))
+ ((TermTracking v t0 t1 t2 t3)))
+
+(rule
+ ((RefMutValid v))
+ ((RefMutTracking v)))
+
+;; Rules for function: type_size
+
+(rule
+ ((type_sizecall (IntTy )))
+ ((type_size (IntTy ) 1)))
+
+(rule
+ ((type_sizecall (UnitTy )))
+ ((type_size (UnitTy ) 1)))
+
+(rule
+ ((type_sizecall (ListTy )))
+ ((type_size (ListTy ) 1)))
+
+(rule
+ ((type_sizecall (Arrow a b)))
+ ((type_sizecall a)))
+
+(rule
+ ((type_sizecall (Ref a)))
+ ((type_sizecall a)))
+
+(rule
+ ((type_sizecall (Forall a)))
+ ((type_sizecall a)))
+
+(rule
+ ((type_sizecall (TyVar i)))
+ ((type_size (TyVar i) 1)))
+
+(rule
+ ((type_sizecall (Arrow a b))
+    (type_size a id_0))
+ ((type_sizecall b)))
+
+(rule
+ ((type_sizecall (Ref a))
+    (type_size a id_2))
+ ((type_size (Ref a) (+ 1 id_2))))
+
+(rule
+ ((type_sizecall (Forall a))
+    (type_size a id_3))
+ ((type_size (Forall a) (+ 1 id_3))))
+
+(rule
+ ((type_sizecall (Arrow a b))
+    (type_size a id_0)
+    (type_size b id_1))
+ ((type_size (Arrow a b) (+ (+ 1 id_0) id_1))))
+
+;; Rules for function: TypetsizeBound
+
+(rule
+ ((TypetsizeBoundcall self))
+ ((type_sizecall self)))
+
+(rule
+ ((TypetsizeBoundcall self)
+    (type_size self id_4))
+ ((TypetsizeBound self id_4)))
+
+;; Rules for function: makeint
+
+(TypeValid (IntTy ))
+
+;; Rules for function: makeunit
+
+(TypeValid (UnitTy ))
+
+;; Rules for function: makelist
+
+(TypeValid (ListTy ))
+
+;; Rules for function: makearrow
+
+(rule
+ ((TypeTracking a)
+    (TypeTracking b))
+ ((TypeValid (Arrow a b))))
+
+;; Rules for function: makeref
+
+(rule
+ ((TypeTracking a))
+ ((TypeValid (Ref a))))
+
+;; Rules for function: makeforall
+
+(rule
+ ((TypeTracking a))
+ ((TypeValid (Forall a))))
+
+;; Rules for function: maketyvar
+
+(rule
+ ((tyvarid i))
+ ((TypeValid (TyVar i))))
+
+;; Rules for function: larger
+
+(rule
+ ((largercall a b)
+    (> a b))
+ ((larger a b a)))
+
+(rule
+ ((largercall a b)
+    (<= a b))
+ ((larger a b b)))
+
+;; Rules for function: needs
+
+(rule
+ ((needscall (IntTy ) k))
+ ((needs (IntTy ) k 0)))
+
+(rule
+ ((needscall (UnitTy ) k))
+ ((needs (UnitTy ) k 0)))
+
+(rule
+ ((needscall (ListTy ) k))
+ ((needs (ListTy ) k 0)))
+
+(rule
+ ((needscall (Arrow a b) k))
+ ((needscall a k)))
+
+(rule
+ ((needscall (Ref a) k))
+ ((needscall a k)))
+
+(rule
+ ((needscall (Forall a) k))
+ ((needscall a (+ k 1))))
+
+(rule
+ ((needscall (Arrow a b) k)
+    (needs a k id_5))
+ ((needscall b k)))
+
+(rule
+ ((needscall (Ref a) k)
+    (needs a k id_8))
+ ((needs (Ref a) k id_8)))
+
+(rule
+ ((needscall (Forall a) k)
+    (needs a (+ k 1) id_9))
+ ((needs (Forall a) k id_9)))
+
+(rule
+ ((needscall (TyVar i) k)
+    (< i k))
+ ((needs (TyVar i) k 0)))
+
+(rule
+ ((needscall (TyVar i) k)
+    (>= i k))
+ ((needs (TyVar i) k (- (+ 1 i) k))))
+
+(rule
+ ((needscall (Arrow a b) k)
+    (needs a k id_5)
+    (needs b k id_6))
+ ((largercall id_5 id_6)))
+
+(rule
+ ((needscall (Arrow a b) k)
+    (needs a k id_5)
+    (needs b k id_6)
+    (larger id_5 id_6 id_7))
+ ((needs (Arrow a b) k id_7)))
+
+;; Rules for function: shift
+
+(rule
+ ((shiftcall (IntTy ) c d))
+ ((shift (IntTy ) c d (IntTy ))))
+
+(rule
+ ((shiftcall (UnitTy ) c d))
+ ((shift (UnitTy ) c d (UnitTy ))))
+
+(rule
+ ((shiftcall (ListTy ) c d))
+ ((shift (ListTy ) c d (ListTy ))))
+
+(rule
+ ((shiftcall (Arrow a b) c d))
+ ((shiftcall a c d)))
+
+(rule
+ ((shiftcall (Ref a) c d))
+ ((shiftcall a c d)))
+
+(rule
+ ((shiftcall (Forall a) c d))
+ ((shiftcall a (+ c 1) d)))
+
+(rule
+ ((shiftcall (Arrow a b) c d)
+    (shift a c d id_10))
+ ((shiftcall b c d)))
+
+(rule
+ ((shiftcall (Ref a) c d)
+    (shift a c d id_12))
+ ((shift (Ref a) c d (Ref id_12))))
+
+(rule
+ ((shiftcall (Forall a) c d)
+    (shift a (+ c 1) d id_13))
+ ((shift (Forall a) c d (Forall id_13))))
+
+(rule
+ ((shiftcall (TyVar i) c d)
+    (< i c))
+ ((shift (TyVar i) c d (TyVar i))))
+
+(rule
+ ((shiftcall (TyVar i) c d)
+    (>= i c))
+ ((shift (TyVar i) c d (TyVar (+ i d)))))
+
+(rule
+ ((shiftcall (Arrow a b) c d)
+    (shift a c d id_10)
+    (shift b c d id_11))
+ ((shift (Arrow a b) c d (Arrow id_10 id_11))))
+
+;; Rules for function: subst
+
+(rule
+ ((substcall (IntTy ) k s))
+ ((subst (IntTy ) k s (IntTy ))))
+
+(rule
+ ((substcall (UnitTy ) k s))
+ ((subst (UnitTy ) k s (UnitTy ))))
+
+(rule
+ ((substcall (ListTy ) k s))
+ ((subst (ListTy ) k s (ListTy ))))
+
+(rule
+ ((substcall (Arrow a b) k s))
+ ((substcall a k s)))
+
+(rule
+ ((substcall (Ref a) k s))
+ ((substcall a k s)))
+
+(rule
+ ((substcall (Forall a) k s))
+ ((substcall a (+ k 1) s)))
+
+(rule
+ ((substcall (Arrow a b) k s)
+    (subst a k s id_14))
+ ((substcall b k s)))
+
+(rule
+ ((substcall (Ref a) k s)
+    (subst a k s id_16))
+ ((subst (Ref a) k s (Ref id_16))))
+
+(rule
+ ((substcall (Forall a) k s)
+    (subst a (+ k 1) s id_17))
+ ((subst (Forall a) k s (Forall id_17))))
+
+(rule
+ ((substcall (TyVar i) i s))
+ ((shiftcall s 0 i)))
+
+(rule
+ ((substcall (Arrow a b) k s)
+    (subst a k s id_14)
+    (subst b k s id_15))
+ ((subst (Arrow a b) k s (Arrow id_14 id_15))))
+
+(rule
+ ((substcall (TyVar k) k s)
+    (shift s 0 k id_18))
+ ((subst (TyVar k) k s id_18)))
+
+(rule
+ ((substcall (TyVar i) k s)
+    (!= i k)
+    (> i k))
+ ((subst (TyVar i) k s (TyVar (- i 1)))))
+
+(rule
+ ((substcall (TyVar i) k s)
+    (!= i k)
+    (<= i k))
+ ((subst (TyVar i) k s (TyVar i))))
+
+;; Rules for function: mentions
+
+(rule
+ ((mentionscall (IntTy ) k))
+ ((mentions (IntTy ) k false)))
+
+(rule
+ ((mentionscall (UnitTy ) k))
+ ((mentions (UnitTy ) k false)))
+
+(rule
+ ((mentionscall (ListTy ) k))
+ ((mentions (ListTy ) k false)))
+
+(rule
+ ((mentionscall (Arrow a b) k))
+ ((mentionscall a k)))
+
+(rule
+ ((mentionscall (Ref a) k))
+ ((mentionscall a k)))
+
+(rule
+ ((mentionscall (Forall a) k))
+ ((mentionscall a (+ k 1))))
+
+(rule
+ ((mentionscall (Arrow a b) k)
+    (mentions a k id_19))
+ ((mentionscall b k)))
+
+(rule
+ ((mentionscall (Ref a) k)
+    (mentions a k id_21))
+ ((mentions (Ref a) k id_21)))
+
+(rule
+ ((mentionscall (Forall a) k)
+    (mentions a (+ k 1) id_22))
+ ((mentions (Forall a) k id_22)))
+
+(rule
+ ((mentionscall (TyVar i) i))
+ ((mentions (TyVar i) i true)))
+
+(rule
+ ((mentionscall (TyVar i) k)
+    (!= i k))
+ ((mentions (TyVar i) k false)))
+
+(rule
+ ((mentionscall (Arrow a b) k)
+    (mentions a k id_19)
+    (mentions b k id_20))
+ ((mentions (Arrow a b) k (or id_19 id_20))))
+
+;; Rules for function: lookup
+
+(rule
+ ((lookupcall (Bind x t rest) x)
+    (varid x))
+ ((lookup (Bind x t rest) x t)))
+
+(rule
+ ((lookupcall (Bind y t rest) x)
+    (varid x)
+    (!= x y))
+ ((lookupcall rest x)))
+
+(rule
+ ((lookupcall (Bind y t rest) x)
+    (varid x)
+    (!= x y)
+    (lookup rest x id_23))
+ ((lookup (Bind y t rest) x id_23)))
+
+;; Rules for function: remove
+
+(rule
+ ((removecall (Nil ) x)
+    (varid x))
+ ((remove (Nil ) x (Nil ))))
+
+(rule
+ ((removecall (Bind x t rest) x)
+    (varid x))
+ ((remove (Bind x t rest) x rest)))
+
+(rule
+ ((removecall (Bind y t rest) x)
+    (varid x)
+    (!= x y))
+ ((removecall rest x)))
+
+(rule
+ ((removecall (Bind y t rest) x)
+    (varid x)
+    (!= x y)
+    (remove rest x id_24))
+ ((remove (Bind y t rest) x (Bind y t id_24))))
+
+;; Rules for function: merge
+
+(rule
+ ((mergecall (Nil ) env2))
+ ((merge (Nil ) env2 env2)))
+
+(rule
+ ((mergecall (Bind x t rest1) (Nil )))
+ ((merge (Bind x t rest1) (Nil ) (Bind x t rest1))))
+
+(rule
+ ((mergecall (Bind x t rest1) (Bind y u rest2))
+    (< x y))
+ ((mergecall rest1 (Bind y u rest2))))
+
+(rule
+ ((mergecall (Bind x t rest1) env2)
+    (= env2 (Bind y u rest2))
+    (< x y)
+    (merge rest1 env2 id_25))
+ ((merge (Bind x t rest1) env2 (Bind x t id_25))))
+
+(rule
+ ((mergecall (Bind x t rest1) (Bind y u rest2))
+    (>= x y)
+    (< y x))
+ ((mergecall (Bind x t rest1) rest2)))
+
+(rule
+ ((mergecall env1 (Bind y u rest2))
+    (= env1 (Bind x t rest1))
+    (>= x y)
+    (< y x)
+    (merge env1 rest2 id_26))
+ ((merge env1 (Bind y u rest2) (Bind y u id_26))))
+
+(rule
+ ((mergecall (Bind x t rest1) (Bind y t rest2))
+    (>= x y)
+    (>= y x))
+ ((mergecall rest1 rest2)))
+
+(rule
+ ((mergecall (Bind x t rest1) (Bind y t rest2))
+    (>= x y)
+    (>= y x)
+    (merge rest1 rest2 id_27))
+ ((merge (Bind x t rest1) (Bind y t rest2) (Bind x t id_27))))
+
+;; Rules for function: unshift_env
+
+(rule
+ ((unshift_envcall (Nil )))
+ ((unshift_env (Nil ) (Nil ))))
+
+(rule
+ ((unshift_envcall (Bind x t rest)))
+ ((mentionscall t 0)))
+
+(rule
+ ((unshift_envcall (Bind x t rest))
+    (mentions t 0 false))
+ ((shiftcall t 0 (- 0 1))))
+
+(rule
+ ((unshift_envcall (Bind x t rest))
+    (mentions t 0 false)
+    (shift t 0 (- 0 1) id_29))
+ ((unshift_envcall rest)))
+
+(rule
+ ((unshift_envcall (Bind x t rest))
+    (mentions t 0 false)
+    (shift t 0 (- 0 1) id_29)
+    (unshift_env rest id_30))
+ ((unshift_env (Bind x t rest) (Bind x id_29 id_30))))
+
+;; Rules for function: makeintlit
+
+(rule
+ ((intlit n))
+ ((ConstantValid (CInt n) (IntTy ))))
+
+;; Rules for function: makeunitlit
+
+(ConstantValid (CUnit ) (UnitTy ))
+
+;; Rules for function: makenil
+
+(ConstantValid (CNil ) (ListTy ))
+
+;; Rules for function: makecons
+
+(ConstantValid (CCons ) (Arrow (IntTy ) (Arrow (ListTy ) (ListTy ))))
+
+;; Rules for function: makehd
+
+(ConstantValid (CHd ) (Arrow (ListTy ) (IntTy )))
+
+;; Rules for function: maketl
+
+(ConstantValid (CTl ) (Arrow (ListTy ) (ListTy )))
+
+;; Rules for function: makeplus
+
+(ConstantValid (CPlus ) (Arrow (IntTy ) (Arrow (IntTy ) (IntTy ))))
+
+;; Rules for function: term_size
+
+(rule
+ ((term_sizecall (Var t x)))
+ ((term_size (Var t x) 1)))
+
+(rule
+ ((term_sizecall (Lam t x e')))
+ ((term_sizecall e')))
+
+(rule
+ ((term_sizecall (App e1 e2)))
+ ((term_sizecall e1)))
+
+(rule
+ ((term_sizecall (Const c)))
+ ((term_size (Const c) 1)))
+
+(rule
+ ((term_sizecall (TyLam e')))
+ ((term_sizecall e')))
+
+(rule
+ ((term_sizecall (TyApp e' t)))
+ ((term_sizecall e')))
+
+(rule
+ ((term_sizecall (MkRef e')))
+ ((term_sizecall e')))
+
+(rule
+ ((term_sizecall (Deref e')))
+ ((term_sizecall e')))
+
+(rule
+ ((term_sizecall (Assign e1 e2)))
+ ((term_sizecall e1)))
+
+(rule
+ ((term_sizecall (Seq e1 e2)))
+ ((term_sizecall e1)))
+
+(rule
+ ((term_sizecall (Minus e1 e2)))
+ ((term_sizecall e1)))
+
+(rule
+ ((term_sizecall (Ifz e1 e2 e3)))
+ ((term_sizecall e1)))
+
+(rule
+ ((term_sizecall (Lam t x e'))
+    (term_size e' id_31))
+ ((term_size (Lam t x e') (+ 1 id_31))))
+
+(rule
+ ((term_sizecall (App e1 e2))
+    (term_size e1 id_32))
+ ((term_sizecall e2)))
+
+(rule
+ ((term_sizecall (TyLam e'))
+    (term_size e' id_34))
+ ((term_size (TyLam e') (+ 1 id_34))))
+
+(rule
+ ((term_sizecall (TyApp e' t))
+    (term_size e' id_35))
+ ((term_size (TyApp e' t) (+ 1 id_35))))
+
+(rule
+ ((term_sizecall (MkRef e'))
+    (term_size e' id_36))
+ ((term_size (MkRef e') (+ 1 id_36))))
+
+(rule
+ ((term_sizecall (Deref e'))
+    (term_size e' id_37))
+ ((term_size (Deref e') (+ 1 id_37))))
+
+(rule
+ ((term_sizecall (Assign e1 e2))
+    (term_size e1 id_38))
+ ((term_sizecall e2)))
+
+(rule
+ ((term_sizecall (Seq e1 e2))
+    (term_size e1 id_40))
+ ((term_sizecall e2)))
+
+(rule
+ ((term_sizecall (Minus e1 e2))
+    (term_size e1 id_42))
+ ((term_sizecall e2)))
+
+(rule
+ ((term_sizecall (Ifz e1 e2 e3))
+    (term_size e1 id_44))
+ ((term_sizecall e2)))
+
+(rule
+ ((term_sizecall (App e1 e2))
+    (term_size e1 id_32)
+    (term_size e2 id_33))
+ ((term_size (App e1 e2) (+ (+ 1 id_32) id_33))))
+
+(rule
+ ((term_sizecall (Assign e1 e2))
+    (term_size e1 id_38)
+    (term_size e2 id_39))
+ ((term_size (Assign e1 e2) (+ (+ 1 id_38) id_39))))
+
+(rule
+ ((term_sizecall (Seq e1 e2))
+    (term_size e1 id_40)
+    (term_size e2 id_41))
+ ((term_size (Seq e1 e2) (+ (+ 1 id_40) id_41))))
+
+(rule
+ ((term_sizecall (Minus e1 e2))
+    (term_size e1 id_42)
+    (term_size e2 id_43))
+ ((term_size (Minus e1 e2) (+ (+ 1 id_42) id_43))))
+
+(rule
+ ((term_sizecall (Ifz e1 e2 e3))
+    (term_size e1 id_44)
+    (term_size e2 id_45))
+ ((term_sizecall e3)))
+
+(rule
+ ((term_sizecall (Ifz e1 e2 e3))
+    (term_size e1 id_44)
+    (term_size e2 id_45)
+    (term_size e3 id_46))
+ ((term_size (Ifz e1 e2 e3) (+ (+ (+ 1 id_44) id_45) id_46))))
+
+;; Rules for function: TermesizeBound
+
+(rule
+ ((TermesizeBoundcall self self_typ self_freevars self_tyvars self_size))
+ ((term_sizecall self)))
+
+(rule
+ ((TermesizeBoundcall self self_typ self_freevars self_tyvars self_size)
+    (term_size self id_47))
+ ((TermesizeBound self self_typ self_freevars self_tyvars self_size id_47)))
+
+;; Rules for function: FitsesizeBound
+
+(rule
+ ((FitsesizeBoundcall (Fit m n)))
+ ((FitsesizeBound (Fit m n) (+ (+ 1 m) n))))
+
+;; Rules for function: makefit
+
+(rule
+ ((esize m)
+    (esize n))
+ ((FitsValid (Fit m n))))
+
+;; Rules for function: makevar
+
+(rule
+ ((TypeTracking t)
+    (varid x))
+ ((needscall t 0)))
+
+(rule
+ ((TypeTracking t)
+    (varid x)
+    (needs t 0 id_48))
+ ((TermValid (Var t x) t (Bind x t (Nil )) id_48 1)))
+
+;; Rules for function: makeconst
+
+(rule
+ ((ConstantTracking c c_typ))
+ ((TermValid (Const c) c_typ (Nil ) 0 1)))
+
+;; Rules for function: makelam
+
+(rule
+ ((TermTracking body body_typ body_freevars body_tyvars body_size)
+    (varid x))
+ ((term_sizecall body)))
+
+(rule
+ ((TermTracking body body_typ body_freevars body_tyvars body_size)
+    (varid x)
+    (term_size body id_49)
+    (< id_49 8))
+ ((lookupcall body_freevars x)))
+
+(rule
+ ((TermTracking body body_typ body_freevars body_tyvars body_size)
+    (varid x)
+    (term_size body id_49)
+    (< id_49 8)
+    (lookup body_freevars x t))
+ ((removecall body_freevars x)))
+
+(rule
+ ((TermTracking body body_typ body_freevars body_tyvars body_size)
+    (varid x)
+    (term_size body id_49)
+    (< id_49 8)
+    (lookup body_freevars x t)
+    (remove body_freevars x id_51))
+ ((TermValid (Lam t x body) (Arrow t body_typ) id_51 body_tyvars (+ body_size 1))))
+
+;; Rules for function: makeapp
+
+(rule
+ ((TermTracking fn (Arrow a b) fn_freevars fn_tyvars fn_size)
+    (TermTracking arg a arg_freevars arg_tyvars arg_size)
+    (FitsTracking (Fit fn_size arg_size)))
+ ((mergecall fn_freevars arg_freevars)))
+
+(rule
+ ((TermTracking fn (Arrow a b) fn_freevars fn_tyvars fn_size)
+    (TermTracking arg a arg_freevars arg_tyvars arg_size)
+    (FitsTracking (Fit fn_size arg_size))
+    (merge fn_freevars arg_freevars id_52))
+ ((largercall fn_tyvars arg_tyvars)))
+
+(rule
+ ((TermTracking fn (Arrow a b) fn_freevars fn_tyvars fn_size)
+    (TermTracking arg a arg_freevars arg_tyvars arg_size)
+    (FitsTracking (Fit fn_size arg_size))
+    (merge fn_freevars arg_freevars id_52)
+    (larger fn_tyvars arg_tyvars id_53))
+ ((TermValid (App fn arg) b id_52 id_53 (+ (+ 1 fn_size) arg_size))))
+
+;; Rules for function: maketylam
+
+(rule
+ ((TermTracking poly poly_typ poly_freevars poly_tyvars poly_size))
+ ((term_sizecall poly)))
+
+(rule
+ ((TermTracking poly poly_typ poly_freevars poly_tyvars poly_size)
+    (term_size poly id_54)
+    (< id_54 8))
+ ((unshift_envcall poly_freevars)))
+
+(rule
+ ((TermTracking poly poly_typ poly_freevars poly_tyvars poly_size)
+    (term_size poly id_54)
+    (< id_54 8)
+    (unshift_env poly_freevars id_55))
+ ((largercall (- poly_tyvars 1) 0)))
+
+(rule
+ ((TermTracking poly poly_typ poly_freevars poly_tyvars poly_size)
+    (term_size poly id_54)
+    (< id_54 8)
+    (unshift_env poly_freevars id_55)
+    (larger (- poly_tyvars 1) 0 id_56))
+ ((TermValid (TyLam poly) (Forall poly_typ) id_55 id_56 (+ poly_size 1))))
+
+;; Rules for function: maketyapp
+
+(rule
+ ((TermTracking inst inst_typ inst_freevars inst_tyvars inst_size)
+    (TypeTracking t))
+ ((term_sizecall inst)))
+
+(rule
+ ((TermTracking inst (Forall body) inst_freevars inst_tyvars inst_size)
+    (TypeTracking t)
+    (term_size inst id_57)
+    (< id_57 8))
+ ((substcall body 0 t)))
+
+(rule
+ ((TermTracking inst (Forall body) inst_freevars inst_tyvars inst_size)
+    (TypeTracking t)
+    (term_size inst id_57)
+    (< id_57 8)
+    (subst body 0 t id_58))
+ ((needscall t 0)))
+
+(rule
+ ((TermTracking inst (Forall body) inst_freevars inst_tyvars inst_size)
+    (TypeTracking t)
+    (term_size inst id_57)
+    (< id_57 8)
+    (subst body 0 t id_58)
+    (needs t 0 id_59))
+ ((largercall inst_tyvars id_59)))
+
+(rule
+ ((TermTracking inst (Forall body) inst_freevars inst_tyvars inst_size)
+    (TypeTracking t)
+    (term_size inst id_57)
+    (< id_57 8)
+    (subst body 0 t id_58)
+    (needs t 0 id_59)
+    (larger inst_tyvars id_59 id_60))
+ ((TermValid (TyApp inst t) id_58 inst_freevars id_60 (+ inst_size 1))))
+
+;; Rules for function: makemkref
+
+(rule
+ ((TermTracking init init_typ init_freevars init_tyvars init_size))
+ ((term_sizecall init)))
+
+(rule
+ ((TermTracking init init_typ init_freevars init_tyvars init_size)
+    (term_size init id_61)
+    (< id_61 8))
+ ((TermValid (MkRef init) (Ref init_typ) init_freevars init_tyvars (+ init_size 1))))
+
+;; Rules for function: makederef
+
+(rule
+ ((TermTracking cell cell_typ cell_freevars cell_tyvars cell_size))
+ ((term_sizecall cell)))
+
+(rule
+ ((TermTracking cell (Ref t) cell_freevars cell_tyvars cell_size)
+    (term_size cell id_62)
+    (< id_62 8))
+ ((TermValid (Deref cell) t cell_freevars cell_tyvars (+ cell_size 1))))
+
+;; Rules for function: makeassign
+
+(rule
+ ((TermTracking target (Ref t) target_freevars target_tyvars target_size)
+    (TermTracking value t value_freevars value_tyvars value_size)
+    (FitsTracking (Fit target_size value_size)))
+ ((mergecall target_freevars value_freevars)))
+
+(rule
+ ((TermTracking target (Ref t) target_freevars target_tyvars target_size)
+    (TermTracking value t value_freevars value_tyvars value_size)
+    (FitsTracking (Fit target_size value_size))
+    (merge target_freevars value_freevars id_63))
+ ((largercall target_tyvars value_tyvars)))
+
+(rule
+ ((TermTracking target (Ref t) target_freevars target_tyvars target_size)
+    (TermTracking value t value_freevars value_tyvars value_size)
+    (FitsTracking (Fit target_size value_size))
+    (merge target_freevars value_freevars id_63)
+    (larger target_tyvars value_tyvars id_64))
+ ((TermValid (Assign target value) (UnitTy ) id_63 id_64 (+ (+ 1 target_size) value_size))))
+
+;; Rules for function: makeseq
+
+(rule
+ ((TermTracking first (UnitTy ) first_freevars first_tyvars first_size)
+    (TermTracking second second_typ second_freevars second_tyvars second_size)
+    (FitsTracking (Fit first_size second_size)))
+ ((mergecall first_freevars second_freevars)))
+
+(rule
+ ((TermTracking first (UnitTy ) first_freevars first_tyvars first_size)
+    (TermTracking second second_typ second_freevars second_tyvars second_size)
+    (FitsTracking (Fit first_size second_size))
+    (merge first_freevars second_freevars id_65))
+ ((largercall first_tyvars second_tyvars)))
+
+(rule
+ ((TermTracking first (UnitTy ) first_freevars first_tyvars first_size)
+    (TermTracking second second_typ second_freevars second_tyvars second_size)
+    (FitsTracking (Fit first_size second_size))
+    (merge first_freevars second_freevars id_65)
+    (larger first_tyvars second_tyvars id_66))
+ ((TermValid (Seq first second) second_typ id_65 id_66 (+ (+ 1 first_size) second_size))))
+
+;; Rules for function: makeminus
+
+(rule
+ ((TermTracking left (IntTy ) left_freevars left_tyvars left_size)
+    (TermTracking right (IntTy ) right_freevars right_tyvars right_size)
+    (FitsTracking (Fit left_size right_size)))
+ ((mergecall left_freevars right_freevars)))
+
+(rule
+ ((TermTracking left (IntTy ) left_freevars left_tyvars left_size)
+    (TermTracking right (IntTy ) right_freevars right_tyvars right_size)
+    (FitsTracking (Fit left_size right_size))
+    (merge left_freevars right_freevars id_67))
+ ((largercall left_tyvars right_tyvars)))
+
+(rule
+ ((TermTracking left (IntTy ) left_freevars left_tyvars left_size)
+    (TermTracking right (IntTy ) right_freevars right_tyvars right_size)
+    (FitsTracking (Fit left_size right_size))
+    (merge left_freevars right_freevars id_67)
+    (larger left_tyvars right_tyvars id_68))
+ ((TermValid (Minus left right) (IntTy ) id_67 id_68 (+ (+ 1 left_size) right_size))))
+
+;; Rules for function: BranchesesizeBound
+
+(rule
+ ((BranchesesizeBoundcall (Branch yes no) self_typ self_freevars self_tyvars self_size))
+ ((term_sizecall yes)))
+
+(rule
+ ((BranchesesizeBoundcall (Branch yes no) self_typ self_freevars self_tyvars self_size)
+    (term_size yes id_69))
+ ((term_sizecall no)))
+
+(rule
+ ((BranchesesizeBoundcall (Branch yes no) self_typ self_freevars self_tyvars self_size)
+    (term_size yes id_69)
+    (term_size no id_70))
+ ((BranchesesizeBound (Branch yes no) self_typ self_freevars self_tyvars self_size (+ (+ 2 id_69) id_70))))
+
+;; Rules for function: makebranches
+
+(rule
+ ((TermTracking yes yes_typ yes_freevars yes_tyvars yes_size)
+    (TermTracking no yes_typ no_freevars no_tyvars no_size)
+    (FitsTracking (Fit yes_size no_size)))
+ ((mergecall yes_freevars no_freevars)))
+
+(rule
+ ((TermTracking yes yes_typ yes_freevars yes_tyvars yes_size)
+    (TermTracking no yes_typ no_freevars no_tyvars no_size)
+    (FitsTracking (Fit yes_size no_size))
+    (merge yes_freevars no_freevars id_71))
+ ((largercall yes_tyvars no_tyvars)))
+
+(rule
+ ((TermTracking yes yes_typ yes_freevars yes_tyvars yes_size)
+    (TermTracking no yes_typ no_freevars no_tyvars no_size)
+    (FitsTracking (Fit yes_size no_size))
+    (merge yes_freevars no_freevars id_71)
+    (larger yes_tyvars no_tyvars id_72))
+ ((BranchesValid (Branch yes no) yes_typ id_71 id_72 (+ yes_size no_size))))
+
+;; Rules for function: makeifz
+
+(rule
+ ((TermTracking test (IntTy ) test_freevars test_tyvars test_size)
+    (BranchesTracking (Branch yes no) br_typ br_freevars br_tyvars br_size)
+    (FitsTracking (Fit test_size br_size)))
+ ((mergecall test_freevars br_freevars)))
+
+(rule
+ ((TermTracking test (IntTy ) test_freevars test_tyvars test_size)
+    (BranchesTracking (Branch yes no) br_typ br_freevars br_tyvars br_size)
+    (FitsTracking (Fit test_size br_size))
+    (merge test_freevars br_freevars id_73))
+ ((largercall test_tyvars br_tyvars)))
+
+(rule
+ ((TermTracking test (IntTy ) test_freevars test_tyvars test_size)
+    (BranchesTracking (Branch yes no) br_typ br_freevars br_tyvars br_size)
+    (FitsTracking (Fit test_size br_size))
+    (merge test_freevars br_freevars id_73)
+    (larger test_tyvars br_tyvars id_74))
+ ((TermValid (Ifz test yes no) br_typ id_73 id_74 (+ (+ 1 test_size) br_size))))
+
+;; Rules for function: makeclosed
+
+(rule
+ ((TermTracking e e_typ (Nil ) 0 e_size))
+ ((RefMutValid (Closed e))))
+
+;; --- Unification Rules ---
+
+;; Custom Union Rules
+
+(rule
+ ((TermTracking e1 tf_val1 tf_val2 tf_val3 tf_val4)
+    (TermTracking e2 tf_val1 tf_val2 tf_val3 tf_val4)
+    (TermesizeBound e1 tf_val1 tf_val2 tf_val3 tf_val4 common_b_val1)
+    (TermesizeBound e2 tf_val1 tf_val2 tf_val3 tf_val4 common_b_val1))
+ ((union e1 e2)))
+
+(run 10000)
+
+
+
+
+
+
+
+
+
+
+
+
+(print-function RefMutTracking 1000000000)

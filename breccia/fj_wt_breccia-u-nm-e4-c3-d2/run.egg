@@ -1,0 +1,1490 @@
+(datatype*
+  (ClassList
+    (UNil)
+    (UCons Class ClassList)
+  )
+  (FieldList
+    (FNil)
+    (FCons Class FieldList)
+  )
+  (Class
+    (Object)
+    (SubObject i64 FieldList)
+    (SubOther i64 FieldList Class)
+  )
+  (MethodInfo
+    (MethodSignature i64 Class ClassList Class)
+  )
+  (Method
+    (FJMethod MethodInfo Expression)
+  )
+  (MethodSet
+    (MSNil)
+    (MSCons Method MethodSet)
+  )
+  (ExprList
+    (ENil)
+    (ECons Expression ExprList)
+  )
+  (PartlyFilled
+    (PFNil)
+    (PFConsFilled Class Expression PartlyFilled)
+    (PFConsEmpty Class PartlyFilled)
+  )
+  (Expression
+    (ThisExpr Class)
+    (VarExpr i64 Class)
+    (CtorCallExpr Class ExprList)
+    (FieldAccessExpr Expression i64)
+    (MethodCallExpr Expression i64 ExprList)
+  )
+  (VarUsage
+    (VNil)
+    (VCons Class i64 VarUsage)
+  )
+  (ExpressionWithContext
+    (EWithContext Expression MethodSet)
+  )
+  (PartlyFilledWithContext
+    (PWithContext PartlyFilled MethodSet)
+  )
+)
+
+;; --- Relation Declarations ---
+
+(relation ClassTracking (Class ClassList))
+
+(relation ClassValid (Class ClassList))
+
+(relation MethodSetTracking (MethodSet ClassList))
+
+(relation MethodSetValid (MethodSet ClassList))
+
+(relation ExpressionWithContextTracking (ExpressionWithContext VarUsage ClassList Class))
+
+(relation ExpressionWithContextValid (ExpressionWithContext VarUsage ClassList Class))
+
+(relation PartlyFilledWithContextTracking (PartlyFilledWithContext VarUsage ClassList))
+
+(relation PartlyFilledWithContextValid (PartlyFilledWithContext VarUsage ClassList))
+
+(relation numclasses (i64))
+
+(relation numfields (i64))
+
+(relation classids (i64))
+
+(relation varids (i64))
+
+(relation esize (i64))
+
+(relation nummethods (i64))
+
+(relation numargs (i64))
+
+(relation numvars (i64))
+
+(relation classdepth (i64))
+
+(relation ClassnumclassesBoundcall (Class ClassList))
+
+(relation ClassnumclassesBound (Class ClassList i64))
+
+(relation maxxcall (i64 i64))
+
+(relation maxx (i64 i64 i64))
+
+(relation get_class_depth_helpercall (FieldList))
+
+(relation get_class_depth_helper (FieldList i64))
+
+(relation get_class_depthcall (Class))
+
+(relation get_class_depth (Class i64))
+
+(relation ClassclassdepthBoundcall (Class ClassList))
+
+(relation ClassclassdepthBound (Class ClassList i64))
+
+(relation length_class_usagecall (ClassList))
+
+(relation length_class_usage (ClassList i64))
+
+(relation countclassescall (Class))
+
+(relation countclasses (Class i64))
+
+(relation ClassnumfieldsBoundcall (Class ClassList))
+
+(relation ClassnumfieldsBound (Class ClassList i64))
+
+(relation fieldListlencall (FieldList))
+
+(relation fieldListlen (FieldList i64))
+
+(relation is_membercall (Class ClassList))
+
+(relation is_member (Class ClassList bool))
+
+(relation gather_from_fieldListcall (FieldList ClassList))
+
+(relation gather_from_fieldList (FieldList ClassList ClassList))
+
+(relation gather_unique_classes_recursivecall (Class ClassList))
+
+(relation gather_unique_classes_recursive (Class ClassList ClassList))
+
+(relation get_fieldListcall (Class))
+
+(relation get_fieldList (Class FieldList))
+
+(relation fieldList_appendcall (FieldList FieldList))
+
+(relation fieldList_append (FieldList FieldList FieldList))
+
+(relation fieldList_remove_prefixcall (FieldList FieldList))
+
+(relation fieldList_remove_prefix (FieldList FieldList FieldList))
+
+(relation is_filledcall (PartlyFilled))
+
+(relation is_filled (PartlyFilled bool))
+
+(relation into_expr_listcall (PartlyFilled))
+
+(relation into_expr_list (PartlyFilled ExprList))
+
+(relation fj_concat_var_usagecall (VarUsage VarUsage))
+
+(relation fj_concat_var_usage (VarUsage VarUsage VarUsage))
+
+(relation add_class_if_not_membercall (Class ClassList))
+
+(relation add_class_if_not_member (Class ClassList ClassList))
+
+(relation union_class_usagecall (ClassList ClassList))
+
+(relation union_class_usage (ClassList ClassList ClassList))
+
+(relation fieldList_to_partly_filledcall (FieldList))
+
+(relation fieldList_to_partly_filled (FieldList PartlyFilled))
+
+(relation get_nth_field_typecall (FieldList i64))
+
+(relation get_nth_field_type (FieldList i64 Class))
+
+(relation are_methods_conflictingcall (Method Method))
+
+(relation are_methods_conflicting (Method Method bool))
+
+(relation check_one_method_against_setcall (Method MethodSet))
+
+(relation check_one_method_against_set (Method MethodSet bool))
+
+(relation check_method_set_conflictcall (MethodSet MethodSet))
+
+(relation check_method_set_conflict (MethodSet MethodSet bool))
+
+(relation do_fill_first_empty_slotcall (PartlyFilled Expression Class))
+
+(relation do_fill_first_empty_slot (PartlyFilled Expression Class PartlyFilled))
+
+(relation append_method_setscall (MethodSet MethodSet))
+
+(relation append_method_sets (MethodSet MethodSet MethodSet))
+
+(relation varusage_to_ClassList_for_argscall (VarUsage))
+
+(relation varusage_to_ClassList_for_args (VarUsage ClassList))
+
+(relation find_method_in_setcall (i64 Class MethodSet))
+
+(relation find_method_in_set (i64 Class MethodSet MethodInfo))
+
+(relation ClassList_to_partlyfilledcall (ClassList))
+
+(relation ClassList_to_partlyfilled (ClassList PartlyFilled))
+
+(relation length_method_setcall (MethodSet))
+
+(relation length_method_set (MethodSet i64))
+
+(relation calculate_expr_list_sizecall (ExprList))
+
+(relation calculate_expr_list_size (ExprList i64))
+
+(relation calculate_expr_sizecall (Expression))
+
+(relation calculate_expr_size (Expression i64))
+
+(relation length_var_usagecall (VarUsage))
+
+(relation length_var_usage (VarUsage i64))
+
+(relation MethodSetnummethodsBoundcall (MethodSet ClassList))
+
+(relation MethodSetnummethodsBound (MethodSet ClassList i64))
+
+(relation ExpressionWithContextnumclassesBoundcall (ExpressionWithContext VarUsage ClassList Class))
+
+(relation ExpressionWithContextnumclassesBound (ExpressionWithContext VarUsage ClassList Class i64))
+
+(relation ExpressionWithContextesizeBoundcall (ExpressionWithContext VarUsage ClassList Class))
+
+(relation ExpressionWithContextesizeBound (ExpressionWithContext VarUsage ClassList Class i64))
+
+(relation ExpressionWithContextnumvarsBoundcall (ExpressionWithContext VarUsage ClassList Class))
+
+(relation ExpressionWithContextnumvarsBound (ExpressionWithContext VarUsage ClassList Class i64))
+
+(relation PartlyFilledWithContextnumclassesBoundcall (PartlyFilledWithContext VarUsage ClassList))
+
+(relation PartlyFilledWithContextnumclassesBound (PartlyFilledWithContext VarUsage ClassList i64))
+
+(relation unify_ExpressionWithContext_predicatecall (ExpressionWithContext ExpressionWithContext))
+
+(relation unify_ExpressionWithContext_predicate (ExpressionWithContext ExpressionWithContext bool))
+
+;; --- Rules and Facts ---
+
+(numclasses 0)
+
+(rule
+ ((numclasses x)
+    (< x 3))
+ ((numclasses (+ x 1))))
+
+(numfields 0)
+
+(rule
+ ((numfields x)
+    (< x 1))
+ ((numfields (+ x 1))))
+
+(classids 0)
+
+(rule
+ ((classids x)
+    (< x 1))
+ ((classids (+ x 1))))
+
+(varids 0)
+
+(rule
+ ((varids x)
+    (< x 1))
+ ((varids (+ x 1))))
+
+(esize 0)
+
+(rule
+ ((esize x)
+    (< x 4))
+ ((esize (+ x 1))))
+
+(nummethods 0)
+
+(numargs 0)
+
+(numvars 0)
+
+(rule
+ ((numvars x)
+    (< x 1))
+ ((numvars (+ x 1))))
+
+(classdepth 0)
+
+(rule
+ ((classdepth x)
+    (< x 2))
+ ((classdepth (+ x 1))))
+
+(rule
+ ((ExpressionWithContextValid v t0 t1 t2))
+ ((ExpressionWithContextnumclassesBoundcall v t0 t1 t2)
+    (ExpressionWithContextesizeBoundcall v t0 t1 t2)
+    (ExpressionWithContextnumvarsBoundcall v t0 t1 t2)))
+
+(rule
+ ((ExpressionWithContextValid v t0 t1 t2)
+    (ExpressionWithContextnumclassesBound v t0 t1 t2 b0)
+    (numclasses b0)
+    (ExpressionWithContextesizeBound v t0 t1 t2 b1)
+    (esize b1)
+    (ExpressionWithContextnumvarsBound v t0 t1 t2 b2)
+    (numvars b2))
+ ((ExpressionWithContextTracking v t0 t1 t2)))
+
+(rule
+ ((PartlyFilledWithContextValid v t0 t1))
+ ((PartlyFilledWithContextnumclassesBoundcall v t0 t1)))
+
+(rule
+ ((PartlyFilledWithContextValid v t0 t1)
+    (PartlyFilledWithContextnumclassesBound v t0 t1 b0)
+    (numclasses b0))
+ ((PartlyFilledWithContextTracking v t0 t1)))
+
+(rule
+ ((ClassValid v t0))
+ ((ClassnumclassesBoundcall v t0)
+    (ClassclassdepthBoundcall v t0)
+    (ClassnumfieldsBoundcall v t0)))
+
+(rule
+ ((ClassValid v t0)
+    (ClassnumclassesBound v t0 b0)
+    (numclasses b0)
+    (ClassclassdepthBound v t0 b1)
+    (classdepth b1)
+    (ClassnumfieldsBound v t0 b2)
+    (numfields b2))
+ ((ClassTracking v t0)))
+
+(rule
+ ((MethodSetValid v t0))
+ ((MethodSetnummethodsBoundcall v t0)))
+
+(rule
+ ((MethodSetValid v t0)
+    (MethodSetnummethodsBound v t0 b0)
+    (nummethods b0))
+ ((MethodSetTracking v t0)))
+
+;; Rules for function: ClassnumclassesBound
+
+(rule
+ ((ClassnumclassesBoundcall self self_classesused))
+ ((countclassescall self)))
+
+(rule
+ ((ClassnumclassesBoundcall self self_classesused)
+    (countclasses self id_0))
+ ((ClassnumclassesBound self self_classesused id_0)))
+
+;; Rules for function: maxx
+
+(rule
+ ((maxxcall a b)
+    (> a b))
+ ((maxx a b a)))
+
+(rule
+ ((maxxcall a b)
+    (<= a b))
+ ((maxx a b b)))
+
+;; Rules for function: get_class_depth_helper
+
+(rule
+ ((get_class_depth_helpercall (FNil )))
+ ((get_class_depth_helper (FNil ) 0)))
+
+(rule
+ ((get_class_depth_helpercall (FCons c fss)))
+ ((get_class_depthcall c)))
+
+(rule
+ ((get_class_depth_helpercall (FCons c fss))
+    (get_class_depth c id_1))
+ ((get_class_depth_helpercall fss)))
+
+(rule
+ ((get_class_depth_helpercall (FCons c fss))
+    (get_class_depth c id_1)
+    (get_class_depth_helper fss id_2))
+ ((maxxcall id_1 id_2)))
+
+(rule
+ ((get_class_depth_helpercall (FCons c fss))
+    (get_class_depth c id_1)
+    (get_class_depth_helper fss id_2)
+    (maxx id_1 id_2 id_3))
+ ((get_class_depth_helper (FCons c fss) id_3)))
+
+;; Rules for function: get_class_depth
+
+(rule
+ ((get_class_depthcall (Object )))
+ ((get_class_depth (Object ) 0)))
+
+(rule
+ ((get_class_depthcall (SubObject n fs)))
+ ((get_class_depth_helpercall fs)))
+
+(rule
+ ((get_class_depthcall (SubOther n fs super)))
+ ((get_class_depth_helpercall fs)))
+
+(rule
+ ((get_class_depthcall (SubObject n fs))
+    (get_class_depth_helper fs id_4))
+ ((get_class_depth (SubObject n fs) (+ 1 id_4))))
+
+(rule
+ ((get_class_depthcall (SubOther n fs super))
+    (get_class_depth_helper fs id_5))
+ ((get_class_depthcall super)))
+
+(rule
+ ((get_class_depthcall (SubOther n fs super))
+    (get_class_depth_helper fs id_5)
+    (get_class_depth super id_6))
+ ((maxxcall id_5 id_6)))
+
+(rule
+ ((get_class_depthcall (SubOther n fs super))
+    (get_class_depth_helper fs id_5)
+    (get_class_depth super id_6)
+    (maxx id_5 id_6 id_7))
+ ((get_class_depth (SubOther n fs super) (+ 1 id_7))))
+
+;; Rules for function: ClassclassdepthBound
+
+(rule
+ ((ClassclassdepthBoundcall self self_classesused))
+ ((get_class_depthcall self)))
+
+(rule
+ ((ClassclassdepthBoundcall self self_classesused)
+    (get_class_depth self id_8))
+ ((ClassclassdepthBound self self_classesused id_8)))
+
+;; Rules for function: length_class_usage
+
+(rule
+ ((length_class_usagecall (UNil )))
+ ((length_class_usage (UNil ) 0)))
+
+(rule
+ ((length_class_usagecall (UCons wildcard_var_0 tail)))
+ ((length_class_usagecall tail)))
+
+(rule
+ ((length_class_usagecall (UCons wildcard_var_0 tail))
+    (length_class_usage tail id_9))
+ ((length_class_usage (UCons wildcard_var_0 tail) (+ 1 id_9))))
+
+;; Rules for function: countclasses
+
+(rule
+ ((countclassescall c))
+ ((gather_unique_classes_recursivecall c (UNil ))))
+
+(rule
+ ((countclassescall c)
+    (gather_unique_classes_recursive c (UNil ) final_visited_list))
+ ((length_class_usagecall final_visited_list)))
+
+(rule
+ ((countclassescall c)
+    (gather_unique_classes_recursive c (UNil ) final_visited_list)
+    (length_class_usage final_visited_list id_11))
+ ((countclasses c id_11)))
+
+;; Rules for function: ClassnumfieldsBound
+
+(rule
+ ((ClassnumfieldsBoundcall (Object ) self_classesused))
+ ((ClassnumfieldsBound (Object ) self_classesused 0)))
+
+(rule
+ ((ClassnumfieldsBoundcall (SubObject n fs) self_classesused))
+ ((fieldListlencall fs)))
+
+(rule
+ ((ClassnumfieldsBoundcall (SubOther n fs c) self_classesused))
+ ((fieldListlencall fs)))
+
+(rule
+ ((ClassnumfieldsBoundcall (SubObject n fs) self_classesused)
+    (fieldListlen fs id_12))
+ ((ClassnumfieldsBound (SubObject n fs) self_classesused id_12)))
+
+(rule
+ ((ClassnumfieldsBoundcall (SubOther n fs c) self_classesused)
+    (fieldListlen fs id_13))
+ ((ClassnumfieldsBound (SubOther n fs c) self_classesused id_13)))
+
+;; Rules for function: fieldListlen
+
+(rule
+ ((fieldListlencall (FNil )))
+ ((fieldListlen (FNil ) 0)))
+
+(rule
+ ((fieldListlencall (FCons wildcard_var_0 rest_fs)))
+ ((fieldListlencall rest_fs)))
+
+(rule
+ ((fieldListlencall (FCons wildcard_var_0 rest_fs))
+    (fieldListlen rest_fs id_14))
+ ((fieldListlen (FCons wildcard_var_0 rest_fs) (+ 1 id_14))))
+
+;; Rules for function: is_member
+
+(rule
+ ((is_membercall item (UNil )))
+ ((is_member item (UNil ) false)))
+
+(rule
+ ((is_membercall item (UCons item tail)))
+ ((is_member item (UCons item tail) true)))
+
+(rule
+ ((is_membercall item (UCons head tail))
+    (!= item head))
+ ((is_membercall item tail)))
+
+(rule
+ ((is_membercall item (UCons head tail))
+    (!= item head)
+    (is_member item tail id_15))
+ ((is_member item (UCons head tail) id_15)))
+
+;; Rules for function: gather_from_fieldList
+
+(rule
+ ((gather_from_fieldListcall (FNil ) visited_input))
+ ((gather_from_fieldList (FNil ) visited_input visited_input)))
+
+(rule
+ ((gather_from_fieldListcall (FCons head_class tail_fieldList) visited_input))
+ ((gather_unique_classes_recursivecall head_class visited_input)))
+
+(rule
+ ((gather_from_fieldListcall (FCons head_class tail_fieldList) visited_input)
+    (gather_unique_classes_recursive head_class visited_input visited_after_head))
+ ((gather_from_fieldListcall tail_fieldList visited_after_head)))
+
+(rule
+ ((gather_from_fieldListcall (FCons head_class tail_fieldList) visited_input)
+    (gather_unique_classes_recursive head_class visited_input visited_after_head)
+    (gather_from_fieldList tail_fieldList visited_after_head id_17))
+ ((gather_from_fieldList (FCons head_class tail_fieldList) visited_input id_17)))
+
+;; Rules for function: gather_unique_classes_recursive
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input))
+ ((is_membercall current_class visited_input)))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input true))
+ ((gather_unique_classes_recursive current_class visited_input visited_input)))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input false)
+    (= current_class (Object )))
+ ((gather_unique_classes_recursive current_class visited_input (UCons current_class visited_input))))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input false)
+    (= current_class (SubObject wildcard_var_0 fieldList)))
+ ((gather_from_fieldListcall fieldList (UCons current_class visited_input))))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input false)
+    (= current_class (SubOther wildcard_var_1 fieldList super_c)))
+ ((gather_from_fieldListcall fieldList (UCons current_class visited_input))))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input false)
+    (= current_class (SubObject wildcard_var_0 fieldList))
+    (gather_from_fieldList fieldList (UCons current_class visited_input) id_19))
+ ((gather_unique_classes_recursive current_class visited_input id_19)))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input false)
+    (= current_class (SubOther wildcard_var_1 fieldList super_c))
+    (gather_from_fieldList fieldList (UCons current_class visited_input) visited_after_fieldList))
+ ((gather_unique_classes_recursivecall super_c visited_after_fieldList)))
+
+(rule
+ ((gather_unique_classes_recursivecall current_class visited_input)
+    (is_member current_class visited_input false)
+    (= current_class (SubOther wildcard_var_1 fieldList super_c))
+    (gather_from_fieldList fieldList (UCons current_class visited_input) visited_after_fieldList)
+    (gather_unique_classes_recursive super_c visited_after_fieldList id_21))
+ ((gather_unique_classes_recursive current_class visited_input id_21)))
+
+;; Rules for function: get_fieldList
+
+(rule
+ ((get_fieldListcall (SubObject wildcard_var_0 f)))
+ ((get_fieldList (SubObject wildcard_var_0 f) f)))
+
+(rule
+ ((get_fieldListcall (SubOther a f c)))
+ ((get_fieldList (SubOther a f c) f)))
+
+;; Rules for function: fieldList_append
+
+(rule
+ ((fieldList_appendcall (FNil ) list2))
+ ((fieldList_append (FNil ) list2 list2)))
+
+(rule
+ ((fieldList_appendcall (FCons h t) list2))
+ ((fieldList_appendcall t list2)))
+
+(rule
+ ((fieldList_appendcall (FCons h t) list2)
+    (fieldList_append t list2 id_22))
+ ((fieldList_append (FCons h t) list2 (FCons h id_22))))
+
+;; Rules for function: fieldList_remove_prefix
+
+(rule
+ ((fieldList_remove_prefixcall (FNil ) f_list))
+ ((fieldList_remove_prefix (FNil ) f_list f_list)))
+
+(rule
+ ((fieldList_remove_prefixcall (FCons a pt) (FCons v lt)))
+ ((fieldList_remove_prefixcall pt lt)))
+
+(rule
+ ((fieldList_remove_prefixcall (FCons a pt) (FCons v lt))
+    (fieldList_remove_prefix pt lt id_23))
+ ((fieldList_remove_prefix (FCons a pt) (FCons v lt) id_23)))
+
+;; Rules for function: makeobj
+
+(ClassValid (Object ) (UCons (Object ) (UNil )))
+
+;; Rules for function: makeemptysubobj
+
+(rule
+ ((classids id))
+ ((ClassValid (SubObject id (FNil )) (UCons (SubObject id (FNil )) (UNil )))))
+
+;; Rules for function: nonewfieldListsubother
+
+(rule
+ ((classids id)
+    (ClassTracking c c_classesused))
+ ((get_fieldListcall c)))
+
+(rule
+ ((classids id)
+    (ClassTracking c c_classesused)
+    (get_fieldList c super_fieldList))
+ ((ClassValid (SubOther id super_fieldList c) (UCons (SubOther id super_fieldList c) c_classesused))))
+
+;; Rules for function: addfieldtoclass
+
+(rule
+ ((classids id)
+    (ClassTracking c c_classesused)
+    (ClassTracking field_class field_class_classesused))
+ ((union_class_usagecall c_classesused field_class_classesused)))
+
+(rule
+ ((classids id)
+    (ClassTracking (SubObject original_id original_fieldList) c_classesused)
+    (ClassTracking field_class field_class_classesused)
+    (union_class_usage c_classesused field_class_classesused new_classes_used))
+ ((fieldList_appendcall original_fieldList (FCons field_class (FNil )))))
+
+(rule
+ ((classids id)
+    (ClassTracking (SubOther original_id original_total_fieldList original_super_class) c_classesused)
+    (ClassTracking field_class field_class_classesused)
+    (union_class_usage c_classesused field_class_classesused new_classes_used))
+ ((fieldList_appendcall original_total_fieldList (FCons field_class (FNil )))))
+
+(rule
+ ((classids id)
+    (ClassTracking (SubObject original_id original_fieldList) c_classesused)
+    (ClassTracking field_class field_class_classesused)
+    (union_class_usage c_classesused field_class_classesused new_classes_used)
+    (fieldList_append original_fieldList (FCons field_class (FNil )) new_fieldList))
+ ((ClassValid (SubObject id new_fieldList) new_classes_used)))
+
+(rule
+ ((classids id)
+    (ClassTracking (SubOther original_id original_total_fieldList original_super_class) c_classesused)
+    (ClassTracking field_class field_class_classesused)
+    (union_class_usage c_classesused field_class_classesused new_classes_used)
+    (fieldList_append original_total_fieldList (FCons field_class (FNil )) new_total_fieldList))
+ ((ClassValid (SubOther id new_total_fieldList original_super_class) new_classes_used)))
+
+;; Rules for function: is_filled
+
+(rule
+ ((is_filledcall (PFNil )))
+ ((is_filled (PFNil ) true)))
+
+(rule
+ ((is_filledcall (PFConsFilled wildcard_var_0 a rest)))
+ ((is_filledcall rest)))
+
+(rule
+ ((is_filledcall (PFConsEmpty wildcard_var_1 b)))
+ ((is_filled (PFConsEmpty wildcard_var_1 b) false)))
+
+(rule
+ ((is_filledcall (PFConsFilled wildcard_var_0 a rest))
+    (is_filled rest id_28))
+ ((is_filled (PFConsFilled wildcard_var_0 a rest) id_28)))
+
+;; Rules for function: into_expr_list
+
+(rule
+ ((into_expr_listcall (PFNil )))
+ ((into_expr_list (PFNil ) (ENil ))))
+
+(rule
+ ((into_expr_listcall (PFConsFilled wildcard_var_0 expr rest)))
+ ((into_expr_listcall rest)))
+
+(rule
+ ((into_expr_listcall (PFConsFilled wildcard_var_0 expr rest))
+    (into_expr_list rest id_29))
+ ((into_expr_list (PFConsFilled wildcard_var_0 expr rest) (ECons expr id_29))))
+
+;; Rules for function: fj_concat_var_usage
+
+(rule
+ ((fj_concat_var_usagecall (VNil ) vu2))
+ ((fj_concat_var_usage (VNil ) vu2 vu2)))
+
+(rule
+ ((fj_concat_var_usagecall (VCons ty id rest) vu2))
+ ((fj_concat_var_usagecall rest vu2)))
+
+(rule
+ ((fj_concat_var_usagecall (VCons ty id rest) vu2)
+    (fj_concat_var_usage rest vu2 id_30))
+ ((fj_concat_var_usage (VCons ty id rest) vu2 (VCons ty id id_30))))
+
+;; Rules for function: add_class_if_not_member
+
+(rule
+ ((add_class_if_not_membercall c cu))
+ ((is_membercall c cu)))
+
+(rule
+ ((add_class_if_not_membercall c cu)
+    (is_member c cu true))
+ ((add_class_if_not_member c cu cu)))
+
+(rule
+ ((add_class_if_not_membercall c cu)
+    (is_member c cu false))
+ ((add_class_if_not_member c cu (UCons c cu))))
+
+;; Rules for function: union_class_usage
+
+(rule
+ ((union_class_usagecall (UNil ) cu2))
+ ((union_class_usage (UNil ) cu2 cu2)))
+
+(rule
+ ((union_class_usagecall (UCons head_c tail_cu1) cu2))
+ ((add_class_if_not_membercall head_c cu2)))
+
+(rule
+ ((union_class_usagecall (UCons head_c tail_cu1) cu2)
+    (add_class_if_not_member head_c cu2 temp_cu2))
+ ((union_class_usagecall tail_cu1 temp_cu2)))
+
+(rule
+ ((union_class_usagecall (UCons head_c tail_cu1) cu2)
+    (add_class_if_not_member head_c cu2 temp_cu2)
+    (union_class_usage tail_cu1 temp_cu2 id_33))
+ ((union_class_usage (UCons head_c tail_cu1) cu2 id_33)))
+
+;; Rules for function: fieldList_to_partly_filled
+
+(rule
+ ((fieldList_to_partly_filledcall (FNil )))
+ ((fieldList_to_partly_filled (FNil ) (PFNil ))))
+
+(rule
+ ((fieldList_to_partly_filledcall (FCons fieldType restFieldList)))
+ ((fieldList_to_partly_filledcall restFieldList)))
+
+(rule
+ ((fieldList_to_partly_filledcall (FCons fieldType restFieldList))
+    (fieldList_to_partly_filled restFieldList id_34))
+ ((fieldList_to_partly_filled (FCons fieldType restFieldList) (PFConsEmpty fieldType id_34))))
+
+;; Rules for function: get_nth_field_type
+
+(rule
+ ((get_nth_field_typecall (FCons fieldType restFieldList) 0))
+ ((get_nth_field_type (FCons fieldType restFieldList) 0 fieldType)))
+
+(rule
+ ((get_nth_field_typecall (FCons fieldType restFieldList) idx)
+    (!= idx 0))
+ ((get_nth_field_typecall restFieldList (- idx 1))))
+
+(rule
+ ((get_nth_field_typecall (FCons fieldType restFieldList) idx)
+    (!= idx 0)
+    (get_nth_field_type restFieldList (- idx 1) id_35))
+ ((get_nth_field_type (FCons fieldType restFieldList) idx id_35)))
+
+;; Rules for function: makethisexpr
+
+(rule
+ ((ClassTracking c_arg c_arg_classesused))
+ ((gather_unique_classes_recursivecall c_arg (UNil ))))
+
+(rule
+ ((ClassTracking c_arg c_arg_classesused)
+    (gather_unique_classes_recursive c_arg (UNil ) classes_used))
+ ((ExpressionWithContextValid (EWithContext (ThisExpr c_arg) (MSNil )) (VNil ) classes_used c_arg)))
+
+;; Rules for function: makevarexpr
+
+(rule
+ ((varids n_arg)
+    (ClassTracking c_arg c_arg_classesused))
+ ((gather_unique_classes_recursivecall c_arg (UNil ))))
+
+(rule
+ ((varids n_arg)
+    (ClassTracking c_arg c_arg_classesused)
+    (gather_unique_classes_recursive c_arg (UNil ) classes_used))
+ ((ExpressionWithContextValid (EWithContext (VarExpr n_arg c_arg) (MSNil )) (VCons c_arg n_arg (VNil )) classes_used c_arg)))
+
+;; Rules for function: makeconstr
+
+(rule
+ ((ClassTracking c_class_to_construct_arg c_class_to_construct_arg_classesused)
+    (PartlyFilledWithContextTracking (PWithContext filled_args_payload method_set_from_pf_context) pf_context_val_vars pf_context_val_eclasses))
+ ((is_filledcall filled_args_payload)))
+
+(rule
+ ((ClassTracking c_class_to_construct_arg c_class_to_construct_arg_classesused)
+    (PartlyFilledWithContextTracking (PWithContext filled_args_payload method_set_from_pf_context) pf_context_val_vars pf_context_val_eclasses)
+    (is_filled filled_args_payload true))
+ ((into_expr_listcall filled_args_payload)))
+
+(rule
+ ((ClassTracking c_class_to_construct_arg c_class_to_construct_arg_classesused)
+    (PartlyFilledWithContextTracking (PWithContext filled_args_payload method_set_from_pf_context) final_vars pf_context_val_eclasses)
+    (is_filled filled_args_payload true)
+    (into_expr_list filled_args_payload arg_expr_list))
+ ((gather_unique_classes_recursivecall c_class_to_construct_arg (UNil ))))
+
+(rule
+ ((ClassTracking c_class_to_construct_arg c_class_to_construct_arg_classesused)
+    (PartlyFilledWithContextTracking (PWithContext filled_args_payload method_set_from_pf_context) final_vars pf_context_val_eclasses)
+    (is_filled filled_args_payload true)
+    (into_expr_list filled_args_payload arg_expr_list)
+    (gather_unique_classes_recursive c_class_to_construct_arg (UNil ) classes_from_constructor_def))
+ ((union_class_usagecall classes_from_constructor_def pf_context_val_eclasses)))
+
+(rule
+ ((ClassTracking c_class_to_construct_arg c_class_to_construct_arg_classesused)
+    (PartlyFilledWithContextTracking (PWithContext filled_args_payload method_set_from_pf_context) final_vars pf_context_val_eclasses)
+    (is_filled filled_args_payload true)
+    (into_expr_list filled_args_payload arg_expr_list)
+    (gather_unique_classes_recursive c_class_to_construct_arg (UNil ) classes_from_constructor_def)
+    (union_class_usage classes_from_constructor_def pf_context_val_eclasses final_eclasses))
+ ((ExpressionWithContextValid (EWithContext (CtorCallExpr c_class_to_construct_arg arg_expr_list) method_set_from_pf_context) final_vars final_eclasses c_class_to_construct_arg)))
+
+;; Rules for function: makepfforconstr
+
+(rule
+ ((ClassTracking c_arg c_arg_classesused))
+ ((get_fieldListcall c_arg)))
+
+(rule
+ ((ClassTracking c_arg c_arg_classesused)
+    (get_fieldList c_arg class_fieldList))
+ ((fieldList_to_partly_filledcall class_fieldList)))
+
+(rule
+ ((ClassTracking c_arg c_arg_classesused)
+    (get_fieldList c_arg class_fieldList)
+    (fieldList_to_partly_filled class_fieldList partly_filled_args))
+ ((PartlyFilledWithContextValid (PWithContext partly_filled_args (MSNil )) (VNil ) c_arg_classesused)))
+
+;; Rules for function: are_methods_conflicting
+
+(rule
+ ((are_methods_conflictingcall m1 m2)
+    (= (FJMethod sig1 a) m1)
+    (= (FJMethod sig2 b) m2)
+    (= m1 m2))
+ ((are_methods_conflicting m1 m2 false)))
+
+(rule
+ ((are_methods_conflictingcall m1 m2)
+    (= (FJMethod (MethodSignature method_name1 receiver_type1 c d) a) m1)
+    (= (FJMethod (MethodSignature method_name2 receiver_type2 e f) b) m2)
+    (!= m1 m2)
+    (!= method_name1 method_name2))
+ ((are_methods_conflicting m1 m2 false)))
+
+(rule
+ ((are_methods_conflictingcall m1 m2)
+    (= (FJMethod (MethodSignature method_name1 receiver_type1 c d) a) m1)
+    (= (FJMethod (MethodSignature method_name1 receiver_type1 e f) b) m2)
+    (!= m1 m2))
+ ((are_methods_conflicting m1 m2 true)))
+
+(rule
+ ((are_methods_conflictingcall m1 m2)
+    (= (FJMethod (MethodSignature method_name1 receiver_type1 c d) a) m1)
+    (= (FJMethod (MethodSignature method_name1 receiver_type2 e f) b) m2)
+    (!= m1 m2)
+    (!= receiver_type1 receiver_type2))
+ ((are_methods_conflicting m1 m2 false)))
+
+;; Rules for function: check_one_method_against_set
+
+(rule
+ ((check_one_method_against_setcall method_to_check (MSNil )))
+ ((check_one_method_against_set method_to_check (MSNil ) false)))
+
+(rule
+ ((check_one_method_against_setcall method_to_check (MSCons head_method_in_set tail_set)))
+ ((are_methods_conflictingcall method_to_check head_method_in_set)))
+
+(rule
+ ((check_one_method_against_setcall method_to_check (MSCons head_method_in_set tail_set))
+    (are_methods_conflicting method_to_check head_method_in_set true))
+ ((check_one_method_against_set method_to_check (MSCons head_method_in_set tail_set) true)))
+
+(rule
+ ((check_one_method_against_setcall method_to_check (MSCons head_method_in_set tail_set))
+    (are_methods_conflicting method_to_check head_method_in_set false))
+ ((check_one_method_against_setcall method_to_check tail_set)))
+
+(rule
+ ((check_one_method_against_setcall method_to_check (MSCons head_method_in_set tail_set))
+    (are_methods_conflicting method_to_check head_method_in_set false)
+    (check_one_method_against_set method_to_check tail_set id_45))
+ ((check_one_method_against_set method_to_check (MSCons head_method_in_set tail_set) id_45)))
+
+;; Rules for function: check_method_set_conflict
+
+(rule
+ ((check_method_set_conflictcall (MSNil ) ms2))
+ ((check_method_set_conflict (MSNil ) ms2 false)))
+
+(rule
+ ((check_method_set_conflictcall (MSCons head_m1 tail_m1) ms2))
+ ((check_one_method_against_setcall head_m1 ms2)))
+
+(rule
+ ((check_method_set_conflictcall (MSCons head_m1 tail_m1) ms2)
+    (check_one_method_against_set head_m1 ms2 true))
+ ((check_method_set_conflict (MSCons head_m1 tail_m1) ms2 true)))
+
+(rule
+ ((check_method_set_conflictcall (MSCons head_m1 tail_m1) ms2)
+    (check_one_method_against_set head_m1 ms2 false))
+ ((check_method_set_conflictcall tail_m1 ms2)))
+
+(rule
+ ((check_method_set_conflictcall (MSCons head_m1 tail_m1) ms2)
+    (check_one_method_against_set head_m1 ms2 false)
+    (check_method_set_conflict tail_m1 ms2 id_47))
+ ((check_method_set_conflict (MSCons head_m1 tail_m1) ms2 id_47)))
+
+;; Rules for function: do_fill_first_empty_slot
+
+(rule
+ ((do_fill_first_empty_slotcall (PFConsFilled slot_class slot_expr rest_list) expr_payload_from_e type_of_e))
+ ((do_fill_first_empty_slotcall rest_list expr_payload_from_e type_of_e)))
+
+(rule
+ ((do_fill_first_empty_slotcall (PFConsFilled slot_class slot_expr rest_list) expr_payload_from_e type_of_e)
+    (do_fill_first_empty_slot rest_list expr_payload_from_e type_of_e id_48))
+ ((do_fill_first_empty_slot (PFConsFilled slot_class slot_expr rest_list) expr_payload_from_e type_of_e (PFConsFilled slot_class slot_expr id_48))))
+
+(rule
+ ((do_fill_first_empty_slotcall (PFConsEmpty type_of_e rest_list_after_empty) expr_payload_from_e type_of_e))
+ ((do_fill_first_empty_slot (PFConsEmpty type_of_e rest_list_after_empty) expr_payload_from_e type_of_e (PFConsFilled type_of_e expr_payload_from_e rest_list_after_empty))))
+
+;; Rules for function: append_method_sets
+
+(rule
+ ((append_method_setscall (MSNil ) ms2))
+ ((append_method_sets (MSNil ) ms2 ms2)))
+
+(rule
+ ((append_method_setscall (MSCons h t) ms2))
+ ((append_method_setscall t ms2)))
+
+(rule
+ ((append_method_setscall (MSCons h t) ms2)
+    (append_method_sets t ms2 id_49))
+ ((append_method_sets (MSCons h t) ms2 (MSCons h id_49))))
+
+;; Rules for function: fillinpartlyfilled
+
+(rule
+ ((PartlyFilledWithContextTracking (PWithContext current_pf_structure pf_method_set) pf_ctx_vars pf_ctx_eclasses)
+    (ExpressionWithContextTracking (EWithContext expr_payload_from_e e_method_set) e_ctx_vars e_ctx_eclasses e_ctx_typp))
+ ((check_method_set_conflictcall pf_method_set e_method_set)))
+
+(rule
+ ((PartlyFilledWithContextTracking (PWithContext current_pf_structure pf_method_set) pf_ctx_vars pf_ctx_eclasses)
+    (ExpressionWithContextTracking (EWithContext expr_payload_from_e e_method_set) e_ctx_vars e_ctx_eclasses e_ctx_typp)
+    (check_method_set_conflict pf_method_set e_method_set false))
+ ((do_fill_first_empty_slotcall current_pf_structure expr_payload_from_e e_ctx_typp)))
+
+(rule
+ ((PartlyFilledWithContextTracking (PWithContext current_pf_structure pf_method_set) pf_ctx_vars pf_ctx_eclasses)
+    (ExpressionWithContextTracking (EWithContext expr_payload_from_e e_method_set) e_ctx_vars e_ctx_eclasses e_ctx_typp)
+    (check_method_set_conflict pf_method_set e_method_set false)
+    (do_fill_first_empty_slot current_pf_structure expr_payload_from_e e_ctx_typp new_pf_structure))
+ ((append_method_setscall pf_method_set e_method_set)))
+
+(rule
+ ((PartlyFilledWithContextTracking (PWithContext current_pf_structure pf_method_set) pf_ctx_vars pf_ctx_eclasses)
+    (ExpressionWithContextTracking (EWithContext expr_payload_from_e e_method_set) e_ctx_vars e_ctx_eclasses e_ctx_typp)
+    (check_method_set_conflict pf_method_set e_method_set false)
+    (do_fill_first_empty_slot current_pf_structure expr_payload_from_e e_ctx_typp new_pf_structure)
+    (append_method_sets pf_method_set e_method_set combined_method_set))
+ ((fj_concat_var_usagecall pf_ctx_vars e_ctx_vars)))
+
+(rule
+ ((PartlyFilledWithContextTracking (PWithContext current_pf_structure pf_method_set) pf_ctx_vars pf_ctx_eclasses)
+    (ExpressionWithContextTracking (EWithContext expr_payload_from_e e_method_set) e_ctx_vars e_ctx_eclasses e_ctx_typp)
+    (check_method_set_conflict pf_method_set e_method_set false)
+    (do_fill_first_empty_slot current_pf_structure expr_payload_from_e e_ctx_typp new_pf_structure)
+    (append_method_sets pf_method_set e_method_set combined_method_set)
+    (fj_concat_var_usage pf_ctx_vars e_ctx_vars result_vars))
+ ((union_class_usagecall pf_ctx_eclasses e_ctx_eclasses)))
+
+(rule
+ ((PartlyFilledWithContextTracking (PWithContext current_pf_structure pf_method_set) pf_ctx_vars pf_ctx_eclasses)
+    (ExpressionWithContextTracking (EWithContext expr_payload_from_e e_method_set) e_ctx_vars e_ctx_eclasses e_ctx_typp)
+    (check_method_set_conflict pf_method_set e_method_set false)
+    (do_fill_first_empty_slot current_pf_structure expr_payload_from_e e_ctx_typp new_pf_structure)
+    (append_method_sets pf_method_set e_method_set combined_method_set)
+    (fj_concat_var_usage pf_ctx_vars e_ctx_vars result_vars)
+    (union_class_usage pf_ctx_eclasses e_ctx_eclasses result_eclasses))
+ ((PartlyFilledWithContextValid (PWithContext new_pf_structure combined_method_set) result_vars result_eclasses)))
+
+;; Rules for function: makefield
+
+(rule
+ ((ExpressionWithContextTracking (EWithContext actual_receiver_expr method_set_in_e_ctx) e_ctx_val_vars e_ctx_val_eclasses receiver_class)
+    (numfields f_idx_arg))
+ ((get_fieldListcall receiver_class)))
+
+(rule
+ ((ExpressionWithContextTracking (EWithContext actual_receiver_expr method_set_in_e_ctx) e_ctx_val_vars e_ctx_val_eclasses receiver_class)
+    (numfields f_idx_arg)
+    (get_fieldList receiver_class class_fieldList))
+ ((get_nth_field_typecall class_fieldList f_idx_arg)))
+
+(rule
+ ((ExpressionWithContextTracking (EWithContext actual_receiver_expr method_set_in_e_ctx) e_ctx_val_vars e_ctx_val_eclasses receiver_class)
+    (numfields f_idx_arg)
+    (get_fieldList receiver_class class_fieldList)
+    (get_nth_field_type class_fieldList f_idx_arg actual_field_type))
+ ((ExpressionWithContextValid (EWithContext (FieldAccessExpr actual_receiver_expr f_idx_arg) method_set_in_e_ctx) e_ctx_val_vars e_ctx_val_eclasses actual_field_type)))
+
+;; Rules for function: varusage_to_ClassList_for_args
+
+(rule
+ ((varusage_to_ClassList_for_argscall (VNil )))
+ ((varusage_to_ClassList_for_args (VNil ) (UNil ))))
+
+(rule
+ ((varusage_to_ClassList_for_argscall (VCons ty a rest_vu)))
+ ((varusage_to_ClassList_for_argscall rest_vu)))
+
+(rule
+ ((varusage_to_ClassList_for_argscall (VCons ty a rest_vu))
+    (varusage_to_ClassList_for_args rest_vu rest_cu))
+ ((add_class_if_not_membercall ty rest_cu)))
+
+(rule
+ ((varusage_to_ClassList_for_argscall (VCons ty a rest_vu))
+    (varusage_to_ClassList_for_args rest_vu rest_cu)
+    (add_class_if_not_member ty rest_cu id_58))
+ ((varusage_to_ClassList_for_args (VCons ty a rest_vu) id_58)))
+
+;; Rules for function: addtomethodset
+
+(rule
+ ((MethodSetTracking existing_ms_val existing_ms_val_eclasses)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars body_expr_ctx_eclasses body_expr_ctx_typp))
+ ((check_method_set_conflictcall existing_ms_val body_expr_method_set)))
+
+(rule
+ ((MethodSetTracking existing_ms_val existing_ms_val_eclasses)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars body_expr_ctx_eclasses body_expr_ctx_typp)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false))
+ ((varusage_to_ClassList_for_argscall body_expr_ctx_vars)))
+
+(rule
+ ((MethodSetTracking existing_ms_val existing_ms_val_eclasses)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars body_expr_ctx_eclasses return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu))
+ ((append_method_setscall existing_ms_val body_expr_method_set)))
+
+(rule
+ ((MethodSetTracking existing_ms_val existing_ms_val_eclasses)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars body_expr_ctx_eclasses return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu)
+    (append_method_sets existing_ms_val body_expr_method_set combined_base_ms))
+ ((check_one_method_against_setcall (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms)))
+
+(rule
+ ((MethodSetTracking existing_ms_val ec_from_existing_ms)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars ec_from_body_expr return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu)
+    (append_method_sets existing_ms_val body_expr_method_set combined_base_ms)
+    (check_one_method_against_set (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms false))
+ ((union_class_usagecall ec_from_existing_ms ec_from_body_expr)))
+
+(rule
+ ((MethodSetTracking existing_ms_val ec_from_existing_ms)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars ec_from_body_expr return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu)
+    (append_method_sets existing_ms_val body_expr_method_set combined_base_ms)
+    (check_one_method_against_set (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms false)
+    (union_class_usage ec_from_existing_ms ec_from_body_expr ec_temp1))
+ ((gather_unique_classes_recursivecall receiver_class_ctx (UNil ))))
+
+(rule
+ ((MethodSetTracking existing_ms_val ec_from_existing_ms)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars ec_from_body_expr return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu)
+    (append_method_sets existing_ms_val body_expr_method_set combined_base_ms)
+    (check_one_method_against_set (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms false)
+    (union_class_usage ec_from_existing_ms ec_from_body_expr ec_temp1)
+    (gather_unique_classes_recursive receiver_class_ctx (UNil ) ec_from_receiver))
+ ((union_class_usagecall ec_temp1 ec_from_receiver)))
+
+(rule
+ ((MethodSetTracking existing_ms_val ec_from_existing_ms)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars ec_from_body_expr return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu)
+    (append_method_sets existing_ms_val body_expr_method_set combined_base_ms)
+    (check_one_method_against_set (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms false)
+    (union_class_usage ec_from_existing_ms ec_from_body_expr ec_temp1)
+    (gather_unique_classes_recursive receiver_class_ctx (UNil ) ec_from_receiver)
+    (union_class_usage ec_temp1 ec_from_receiver ec_temp2))
+ ((union_class_usagecall ec_temp2 arg_types_as_cu)))
+
+(rule
+ ((MethodSetTracking existing_ms_val ec_from_existing_ms)
+    (nummethods new_method_id)
+    (ClassTracking receiver_class_ctx receiver_class_ctx_classesused)
+    (ExpressionWithContextTracking (EWithContext body_expression body_expr_method_set) body_expr_ctx_vars ec_from_body_expr return_type_as_class)
+    (check_method_set_conflict existing_ms_val body_expr_method_set false)
+    (varusage_to_ClassList_for_args body_expr_ctx_vars arg_types_as_cu)
+    (append_method_sets existing_ms_val body_expr_method_set combined_base_ms)
+    (check_one_method_against_set (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms false)
+    (union_class_usage ec_from_existing_ms ec_from_body_expr ec_temp1)
+    (gather_unique_classes_recursive receiver_class_ctx (UNil ) ec_from_receiver)
+    (union_class_usage ec_temp1 ec_from_receiver ec_temp2)
+    (union_class_usage ec_temp2 arg_types_as_cu final_tracking_eclasses))
+ ((MethodSetValid (MSCons (FJMethod (MethodSignature new_method_id receiver_class_ctx arg_types_as_cu return_type_as_class) body_expression) combined_base_ms) final_tracking_eclasses)))
+
+;; Rules for function: find_method_in_set
+
+(rule
+ ((find_method_in_setcall target_method_name target_receiver_type (MSCons (FJMethod (MethodSignature m_name recv_type b c) a) rest_ms))
+    (nummethods target_method_name)
+    (!= m_name target_method_name))
+ ((find_method_in_setcall target_method_name target_receiver_type rest_ms)))
+
+(rule
+ ((find_method_in_setcall target_method_name target_receiver_type (MSCons (FJMethod (MethodSignature m_name recv_type b c) a) rest_ms))
+    (nummethods target_method_name)
+    (!= m_name target_method_name)
+    (find_method_in_set target_method_name target_receiver_type rest_ms id_67))
+ ((find_method_in_set target_method_name target_receiver_type (MSCons (FJMethod (MethodSignature m_name recv_type b c) a) rest_ms) id_67)))
+
+(rule
+ ((find_method_in_setcall target_method_name recv_type (MSCons (FJMethod (MethodSignature target_method_name recv_type b c) a) rest_ms))
+    (nummethods target_method_name))
+ ((find_method_in_set target_method_name recv_type (MSCons (FJMethod (MethodSignature target_method_name recv_type b c) a) rest_ms) (MethodSignature target_method_name recv_type b c))))
+
+(rule
+ ((find_method_in_setcall target_method_name target_receiver_type (MSCons (FJMethod (MethodSignature target_method_name recv_type b c) a) rest_ms))
+    (nummethods target_method_name)
+    (!= recv_type target_receiver_type))
+ ((find_method_in_setcall target_method_name target_receiver_type rest_ms)))
+
+(rule
+ ((find_method_in_setcall target_method_name target_receiver_type (MSCons (FJMethod (MethodSignature target_method_name recv_type b c) a) rest_ms))
+    (nummethods target_method_name)
+    (!= recv_type target_receiver_type)
+    (find_method_in_set target_method_name target_receiver_type rest_ms id_68))
+ ((find_method_in_set target_method_name target_receiver_type (MSCons (FJMethod (MethodSignature target_method_name recv_type b c) a) rest_ms) id_68)))
+
+;; Rules for function: ClassList_to_partlyfilled
+
+(rule
+ ((ClassList_to_partlyfilledcall (UNil )))
+ ((ClassList_to_partlyfilled (UNil ) (PFNil ))))
+
+(rule
+ ((ClassList_to_partlyfilledcall (UCons arg_class_type rest_cu)))
+ ((ClassList_to_partlyfilledcall rest_cu)))
+
+(rule
+ ((ClassList_to_partlyfilledcall (UCons arg_class_type rest_cu))
+    (ClassList_to_partlyfilled rest_cu id_69))
+ ((ClassList_to_partlyfilled (UCons arg_class_type rest_cu) (PFConsEmpty arg_class_type id_69))))
+
+;; Rules for function: makepfformethodcall
+
+(rule
+ ((ClassTracking pf_receiver_class_ctx pf_receiver_class_ctx_classesused)
+    (nummethods mn_method_name)
+    (MethodSetTracking ms_val ms_val_eclasses))
+ ((find_method_in_setcall mn_method_name pf_receiver_class_ctx ms_val)))
+
+(rule
+ ((ClassTracking pf_receiver_class_ctx pf_receiver_class_ctx_classesused)
+    (nummethods mn_method_name)
+    (MethodSetTracking ms_val ms_val_eclasses)
+    (find_method_in_set mn_method_name pf_receiver_class_ctx ms_val (MethodSignature a b arg_types_cu c)))
+ ((ClassList_to_partlyfilledcall arg_types_cu)))
+
+(rule
+ ((ClassTracking pf_receiver_class_ctx pf_receiver_class_ctx_classesused)
+    (nummethods mn_method_name)
+    (MethodSetTracking ms_val ms_val_eclasses)
+    (find_method_in_set mn_method_name pf_receiver_class_ctx ms_val (MethodSignature a b arg_types_cu c))
+    (ClassList_to_partlyfilled arg_types_cu partly_filled_for_args))
+ ((PartlyFilledWithContextValid (PWithContext partly_filled_for_args ms_val) (VNil ) ms_val_eclasses)))
+
+;; Rules for function: makeemptymethodset
+
+(MethodSetValid (MSNil ) (UNil ))
+
+;; Rules for function: length_method_set
+
+(rule
+ ((length_method_setcall (MSNil )))
+ ((length_method_set (MSNil ) 0)))
+
+(rule
+ ((length_method_setcall (MSCons wildcard_var_0 tail_ms)))
+ ((length_method_setcall tail_ms)))
+
+(rule
+ ((length_method_setcall (MSCons wildcard_var_0 tail_ms))
+    (length_method_set tail_ms id_72))
+ ((length_method_set (MSCons wildcard_var_0 tail_ms) (+ 1 id_72))))
+
+;; Rules for function: calculate_expr_list_size
+
+(rule
+ ((calculate_expr_list_sizecall (ENil )))
+ ((calculate_expr_list_size (ENil ) 0)))
+
+(rule
+ ((calculate_expr_list_sizecall (ECons head_e tail_el)))
+ ((calculate_expr_sizecall head_e)))
+
+(rule
+ ((calculate_expr_list_sizecall (ECons head_e tail_el))
+    (calculate_expr_size head_e id_73))
+ ((calculate_expr_list_sizecall tail_el)))
+
+(rule
+ ((calculate_expr_list_sizecall (ECons head_e tail_el))
+    (calculate_expr_size head_e id_73)
+    (calculate_expr_list_size tail_el id_74))
+ ((calculate_expr_list_size (ECons head_e tail_el) (+ id_73 id_74))))
+
+;; Rules for function: calculate_expr_size
+
+(rule
+ ((calculate_expr_sizecall (ThisExpr wildcard_var_0)))
+ ((calculate_expr_size (ThisExpr wildcard_var_0) 1)))
+
+(rule
+ ((calculate_expr_sizecall (VarExpr a b)))
+ ((calculate_expr_size (VarExpr a b) 1)))
+
+(rule
+ ((calculate_expr_sizecall (CtorCallExpr wildcard_var_1 arg_list)))
+ ((calculate_expr_list_sizecall arg_list)))
+
+(rule
+ ((calculate_expr_sizecall (FieldAccessExpr receiver_e a)))
+ ((calculate_expr_sizecall receiver_e)))
+
+(rule
+ ((calculate_expr_sizecall (MethodCallExpr receiver_e b arg_list)))
+ ((calculate_expr_sizecall receiver_e)))
+
+(rule
+ ((calculate_expr_sizecall (CtorCallExpr wildcard_var_1 arg_list))
+    (calculate_expr_list_size arg_list id_75))
+ ((calculate_expr_size (CtorCallExpr wildcard_var_1 arg_list) (+ 1 id_75))))
+
+(rule
+ ((calculate_expr_sizecall (FieldAccessExpr receiver_e a))
+    (calculate_expr_size receiver_e id_76))
+ ((calculate_expr_size (FieldAccessExpr receiver_e a) (+ 1 id_76))))
+
+(rule
+ ((calculate_expr_sizecall (MethodCallExpr receiver_e b arg_list))
+    (calculate_expr_size receiver_e id_77))
+ ((calculate_expr_list_sizecall arg_list)))
+
+(rule
+ ((calculate_expr_sizecall (MethodCallExpr receiver_e b arg_list))
+    (calculate_expr_size receiver_e id_77)
+    (calculate_expr_list_size arg_list id_78))
+ ((calculate_expr_size (MethodCallExpr receiver_e b arg_list) (+ (+ 1 id_77) id_78))))
+
+;; Rules for function: length_var_usage
+
+(rule
+ ((length_var_usagecall (VNil )))
+ ((length_var_usage (VNil ) 0)))
+
+(rule
+ ((length_var_usagecall (VCons a b tail_vu)))
+ ((length_var_usagecall tail_vu)))
+
+(rule
+ ((length_var_usagecall (VCons a b tail_vu))
+    (length_var_usage tail_vu id_79))
+ ((length_var_usage (VCons a b tail_vu) (+ 1 id_79))))
+
+;; Rules for function: MethodSetnummethodsBound
+
+(rule
+ ((MethodSetnummethodsBoundcall self self_eclasses))
+ ((length_method_setcall self)))
+
+(rule
+ ((MethodSetnummethodsBoundcall self self_eclasses)
+    (length_method_set self id_80))
+ ((MethodSetnummethodsBound self self_eclasses id_80)))
+
+;; Rules for function: ExpressionWithContextnumclassesBound
+
+(rule
+ ((ExpressionWithContextnumclassesBoundcall self self_vars self_eclasses self_typp))
+ ((length_class_usagecall self_eclasses)))
+
+(rule
+ ((ExpressionWithContextnumclassesBoundcall self self_vars self_eclasses self_typp)
+    (length_class_usage self_eclasses id_81))
+ ((ExpressionWithContextnumclassesBound self self_vars self_eclasses self_typp id_81)))
+
+;; Rules for function: ExpressionWithContextesizeBound
+
+(rule
+ ((ExpressionWithContextesizeBoundcall (EWithContext the_actual_expr a) self_vars self_eclasses self_typp))
+ ((calculate_expr_sizecall the_actual_expr)))
+
+(rule
+ ((ExpressionWithContextesizeBoundcall (EWithContext the_actual_expr a) self_vars self_eclasses self_typp)
+    (calculate_expr_size the_actual_expr id_82))
+ ((ExpressionWithContextesizeBound (EWithContext the_actual_expr a) self_vars self_eclasses self_typp id_82)))
+
+;; Rules for function: ExpressionWithContextnumvarsBound
+
+(rule
+ ((ExpressionWithContextnumvarsBoundcall self self_vars self_eclasses self_typp))
+ ((length_var_usagecall self_vars)))
+
+(rule
+ ((ExpressionWithContextnumvarsBoundcall self self_vars self_eclasses self_typp)
+    (length_var_usage self_vars id_83))
+ ((ExpressionWithContextnumvarsBound self self_vars self_eclasses self_typp id_83)))
+
+;; Rules for function: PartlyFilledWithContextnumclassesBound
+
+(rule
+ ((PartlyFilledWithContextnumclassesBoundcall self self_vars self_eclasses))
+ ((length_class_usagecall self_eclasses)))
+
+(rule
+ ((PartlyFilledWithContextnumclassesBoundcall self self_vars self_eclasses)
+    (length_class_usage self_eclasses id_84))
+ ((PartlyFilledWithContextnumclassesBound self self_vars self_eclasses id_84)))
+
+;; Rules for function: unify_ExpressionWithContext_predicate
+
+(rule
+ ((unify_ExpressionWithContext_predicatecall e1 e2)
+    (ExpressionWithContextTracking e1 e1_vars e1_eclasses e1_typp)
+    (ExpressionWithContextTracking e2 e2_vars e2_eclasses e2_typp)
+    (= e1_vars e2_vars)
+    (= e1_eclasses e2_eclasses)
+    (= e1_typp e2_typp)
+    (ExpressionWithContextnumclassesBound e1 e1_vars e1_eclasses e1_typp e1_numclasses)
+    (ExpressionWithContextnumclassesBound e2 e2_vars e2_eclasses e2_typp e1_numclasses)
+    (ExpressionWithContextesizeBound e1 e1_vars e1_eclasses e1_typp e1_esize)
+    (ExpressionWithContextesizeBound e2 e2_vars e2_eclasses e2_typp e1_esize))
+ ((unify_ExpressionWithContext_predicate e1 e2 true)))
+
+;; --- Unification Rules ---
+
+(rule
+ ((ExpressionWithContextTracking u_e1 t1_0 t1_1 t1_2)
+    (ExpressionWithContextTracking u_e2 t2_0 t2_1 t2_2)
+    (!= u_e1 u_e2))
+ ((unify_ExpressionWithContext_predicatecall u_e1 u_e2)))
+
+(rule
+ ((unify_ExpressionWithContext_predicate u_e1 u_e2 true))
+ ((union u_e1 u_e2)))
+
+;; Custom Union Rules
+
+(rule
+ ((ExpressionWithContextTracking e1 tf_val1 tf_val2 tf_val3)
+    (ExpressionWithContextTracking e2 tf_val1 tf_val2 tf_val3)
+    (ExpressionWithContextnumclassesBound e1 tf_val1 tf_val2 tf_val3 common_b_val1)
+    (ExpressionWithContextnumclassesBound e2 tf_val1 tf_val2 tf_val3 common_b_val1)
+    (ExpressionWithContextesizeBound e1 tf_val1 tf_val2 tf_val3 common_b_val2)
+    (ExpressionWithContextesizeBound e2 tf_val1 tf_val2 tf_val3 common_b_val2))
+ ((union e1 e2)))
+
+(run 10000)
+
+
+
+
+
+
+
+
+(print-function ExpressionWithContextTracking 1000000000)

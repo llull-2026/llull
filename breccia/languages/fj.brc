@@ -1,0 +1,720 @@
+// These bounds define constraints on the various integer-like types in the system.
+// They are used by the synthesis engine to limit the search space.
+bound numclasses = 0..2
+bound numfields = 0..1
+bound classids = 0..1
+bound varids = 0..1
+bound esize = 0..2
+bound nummethods = 0..1
+bound numargs = 0..0
+bound numvars = 0..1
+bound classdepth = 0..1
+
+// A list of classes, used for tracking class usage.
+datatype ClassList = {
+  | UNil
+  | UCons(Class, ClassList)
+}
+
+// A list of fields, where each field is defined by its class.
+datatype FieldList = {
+  | FNil
+  | FCons(Class, FieldList)
+}
+
+// The core representation of a class.
+// It can be a base Object, a SubObject with fields, or a SubOther that extends another class.
+
+// Its bounds are:
+      // numclasses: which is the total number of distinct classes it contains in itself
+      // numfields: which is the number of fields it has
+      // classdepth: which is how deep the class recursion goes (including both subtyping and field classes)
+// It keeps track of:
+      // the list of classes that it uses (the length of this is bounded by numclasses)
+datatype Class bounded_by (numclasses: numclasses, numfields: numfields, classdepth: classdepth)
+    tracking (classesused: ClassList) = {
+  | Object
+  | SubObject(Int, FieldList)
+  | SubOther(Int, FieldList, Class)
+}
+
+// Bounding function that calculates the number of unique classes for a given Class.
+def Class.bound -> numclasses = {
+  countclasses(self)
+}
+
+
+def maxx(a: Int, b: Int) -> Int = {
+  if (a > b) {
+    a
+  }
+  else {
+    b
+  }
+}
+
+// Recursively finds the maximum depth of any class within a FieldList.
+def get_class_depth_helper(fs: FieldList) -> Int = {
+  fs match {
+    | FNil() => 0
+    | FCons(c, fss) => maxx(get_class_depth(c), get_class_depth_helper(fss))
+  }
+}
+
+// Calculates the depth of a class hierarchy.
+// Object is depth 0. A SubObject's depth is 1 + the max depth of its fields.
+// A SubOther's depth is 1 + the max depth of its own fields and its superclass.
+def get_class_depth(c: Class) -> Int = {
+  c match {
+    | Object() => 0
+    | SubObject(n, fs) => 1 + get_class_depth_helper(fs)
+    | SubOther(n, fs, super) => 1 + maxx(get_class_depth_helper(fs), get_class_depth(super))
+  }
+}
+
+// Bounding function that calculates the hierarchy depth for a given Class.
+def Class.bound -> classdepth = {
+  get_class_depth(self)
+}
+
+def length_class_usage(cu_list: ClassList) -> Int = {
+  cu_list match {
+    | UNil() => 0
+    | UCons(_, tail) => (1 + length_class_usage(tail))
+  }
+}
+
+// Counts the total number of unique classes reachable from a starting class `c`
+// by traversing its fields and superclass hierarchy.
+def countclasses(c: Class) -> Int = {
+  // First, gather all unique classes into a list.
+  let final_visited_list = gather_unique_classes_recursive(c, UNil())
+  // Then, calculate the length of that list.
+  length_class_usage(final_visited_list)
+}
+
+def Class.bound -> numfields = {
+  self match {
+    | Object() => 0
+    | SubObject(n, fs) => fieldListlen(fs)
+    | SubOther(n,fs,c) => fieldListlen(fs)
+  }
+}
+
+def fieldListlen(fs: FieldList) -> Int = {
+  fs match {
+    | FNil() => 0
+    | FCons(_, rest_fs) => (1 + fieldListlen(rest_fs))
+  }
+}
+
+def is_member(item: Class, usage_list: ClassList) -> Bool = {
+  usage_list match {
+    | UNil() => false
+    | UCons(head, tail) => {
+      if (item == head) {
+        true
+      } else {
+        is_member(item, tail)
+      }
+    }
+  }
+}
+
+// Helper function for `gather_unique_classes_recursive`.
+// It iterates through a list of fields (`f_list`) and recursively gathers all unique
+// classes from each field, adding them to the `visited_input` list.
+def gather_from_fieldList(f_list: FieldList, visited_input: ClassList) -> ClassList = {
+  f_list match {
+    | FNil() => visited_input
+    | FCons(head_class, tail_fieldList) => {
+      // Recurse on the current field's class to gather its constituent classes.
+      let visited_after_head = gather_unique_classes_recursive(head_class, visited_input)
+      // Continue with the rest of the fields.
+      gather_from_fieldList(tail_fieldList, visited_after_head)
+    }
+  }
+}
+
+// Performs a traversal of the class graph starting from `current_class`
+// to collect a list of all unique classes encountered.
+// `visited_input` is used to track already seen classes to prevent cycles and redundant work.
+def gather_unique_classes_recursive(current_class: Class, visited_input: ClassList) -> ClassList = {
+  // If we've already seen this class, do nothing and return the list as is.
+  if (is_member(current_class, visited_input)) {
+    visited_input
+  } else {
+    // Otherwise, add the current class to the visited list.
+    let visited_after_current = UCons(current_class, visited_input)
+    // Then, recurse based on the type of the current class.
+    current_class match {
+      | Object() => visited_after_current
+      | SubObject(_, fieldList) => {
+        // If it's a SubObject, gather classes from its fields.
+        gather_from_fieldList(fieldList, visited_after_current)
+      }
+      | SubOther(_, fieldList, super_c) => {
+        // If it's a SubOther, gather from its fields first...
+        let visited_after_fieldList = gather_from_fieldList(fieldList, visited_after_current)
+        // ...and then recurse on its superclass.
+        gather_unique_classes_recursive(super_c, visited_after_fieldList)
+      }
+    }
+  }
+}
+
+def get_fieldList(cl: Class) -> FieldList = {
+  cl match {
+    | SubObject(_, f) => f
+    | SubOther(a, f, c) => f
+  }
+}
+
+def fieldList_append(list1: FieldList, list2: FieldList) -> FieldList = {
+  list1 match {
+    | FNil() => list2
+    | FCons(h, t) => FCons(h, fieldList_append(t, list2))
+  }
+}
+
+// Removes a `prefix` FieldList from the beginning of `f_list`.
+// This is used to isolate the fields that are specific to a subclass.
+def fieldList_remove_prefix(prefix: FieldList, f_list: FieldList) -> FieldList = {
+  prefix match {
+    | FNil() => f_list
+    | FCons(a, pt) => {
+      // The `filter` expression is a pattern match that destructures f_list.
+      // It ensures f_list is a Cons cell, binding its tail to `lt`.
+      filter FCons(v, lt) is f_list
+      // Recurse with the tail of the prefix and the tail of the list.
+      fieldList_remove_prefix(pt, lt)
+    }
+  }
+}
+
+// Generates a base Object.
+generator makeobj() -> #Class = {
+  Object tracking (classesused: UCons(Object, UNil()))
+}
+
+// Generates a SubObject with a given ID and no fields.
+generator makeemptysubobj(id: classids) -> #Class = {
+  SubObject(id, FNil()) tracking (classesused: UCons(SubObject(id, FNil()), UNil()))
+}
+
+// Creates a new SubOther class that extends an existing class `c`.
+// The new class has the same fields as its superclass `c`.
+generator nonewfieldListsubother(id: classids, c: #Class) -> #Class = {
+  let super_fieldList = get_fieldList(c)
+  let new_class_val = SubOther(id, super_fieldList, c)
+  // The new class's used classes are itself plus all classes used by its superclass.
+  new_class_val tracking (classesused: UCons(new_class_val, c.classesused))
+}
+
+// Adds a new field (`field_class`) to an existing class `c`.
+generator addfieldtoclass(id: classids, c: #Class, field_class: #Class) -> #Class = {
+  // Combine the class usage lists from the base class and the new field's class.
+  let new_classes_used = union_class_usage(c.classesused, field_class.classesused)
+  c match {
+    | SubObject(original_id, original_fieldList) => {
+      let new_fieldList = fieldList_append(original_fieldList, FCons(field_class, FNil()))
+      SubObject(id, new_fieldList) tracking (classesused: new_classes_used)
+    }
+    | SubOther(original_id, original_total_fieldList, original_super_class) => {
+      let new_total_fieldList = fieldList_append(original_total_fieldList, FCons(field_class, FNil()))
+      SubOther(id, new_total_fieldList, original_super_class) tracking (classesused: new_classes_used)
+    }
+  }
+}
+
+// Defines the signature of a method: its name (ID), receiver type, argument types, and return type.
+datatype MethodInfo = {
+  | MethodSignature(
+      nummethods,
+      Class,
+      ClassList,
+      Class
+    )
+}
+
+// A method is a pair of its signature and its body (an expression).
+datatype Method = {
+  | FJMethod(
+      MethodInfo,
+      Expression
+    )
+}
+
+// A set of methods, represented as a list.
+datatype MethodSet bounded_by (nummethods: nummethods)
+                  tracking (eclasses: ClassList) = {
+  | MSNil
+  | MSCons(Method, MethodSet)
+}
+
+// A list of expressions.
+datatype ExprList = {
+  | ENil
+  | ECons(Expression, ExprList)
+}
+
+// Represents a list of arguments being prepared for a function or constructor call.
+// It can have filled slots (PFConsFilled) and empty slots awaiting an expression (PFConsEmpty).
+datatype PartlyFilled = {
+  | PFNil
+  | PFConsFilled(Class, Expression, PartlyFilled)
+  | PFConsEmpty(Class, PartlyFilled)
+}
+
+// The core expression types in the language.
+datatype Expression = {
+  | ThisExpr(Class)
+  | VarExpr(varids, Class)
+  | CtorCallExpr(Class, ExprList)
+  | FieldAccessExpr(Expression, numfields)
+  | MethodCallExpr(Expression, nummethods, ExprList)
+}
+
+// Tracks the usage of variables within an expression context, including their types.
+datatype VarUsage = {
+  | VNil
+  | VCons(Class, Int, VarUsage)
+}
+
+// An expression bundled with its context, which includes the set of methods in scope,
+// variables used, classes used, and the expression's own resulting type.
+datatype ExpressionWithContext
+  bounded_by (numclasses: numclasses,
+              esize: esize)
+  tracking (vars: VarUsage,
+            eclasses: ClassList,
+            typp: Class) =
+{
+  | EWithContext(Expression, MethodSet)
+}
+
+// A partially filled argument list bundled with its context.
+datatype PartlyFilledWithContext bounded_by (numclasses: numclasses)
+  tracking (vars: VarUsage, eclasses: ClassList) = {
+  | PWithContext(PartlyFilled, MethodSet)
+}
+
+def is_filled(args: PartlyFilled) -> Bool = {
+    args match {
+        | PFNil() => true
+        | PFConsFilled(_, a, rest) => is_filled(rest)
+        | PFConsEmpty(_, b) => false
+    }
+}
+
+def into_expr_list(args: PartlyFilled) -> ExprList = {
+      args match {
+        | PFNil() => ENil()
+        | PFConsFilled(_, expr, rest) => ECons(expr, into_expr_list(rest))
+    }
+}
+
+def fj_concat_var_usage(vu1: VarUsage, vu2: VarUsage) -> VarUsage = {
+    vu1 match {
+        | VNil() => vu2
+        | VCons(ty, id, rest) => VCons(ty, id, fj_concat_var_usage(rest, vu2))
+    }
+}
+
+def add_class_if_not_member(c: Class, cu: ClassList) -> ClassList = {
+    if (is_member(c, cu)) {
+        cu
+    } else {
+        UCons(c, cu)
+    }
+}
+
+// Computes the union of two ClassList sets, ensuring no duplicates.
+def union_class_usage(cu1: ClassList, cu2: ClassList) -> ClassList = {
+    cu1 match {
+        | UNil() => cu2
+        | UCons(head_c, tail_cu1) => {
+            let temp_cu2 = add_class_if_not_member(head_c, cu2)
+            union_class_usage(tail_cu1, temp_cu2)
+        }
+    }
+}
+
+def fieldList_to_partly_filled(f: FieldList) -> PartlyFilled = {
+    f match {
+        | FNil() => PFNil()
+        | FCons(fieldType, restFieldList) => PFConsEmpty(fieldType, fieldList_to_partly_filled(restFieldList))
+    }
+}
+
+def get_nth_field_type(flds: FieldList, idx: Int) -> Class = {
+    flds match {
+        | FNil() => fail
+        | FCons(fieldType, restFieldList) => {
+            if (idx == 0) {
+                fieldType
+            } else {
+                get_nth_field_type(restFieldList, idx - 1)
+            }
+        }
+    }
+}
+
+// Generates a 'this' expression within a context.
+generator makethisexpr(c_arg: #Class) -> #ExpressionWithContext = {
+     let this_expr = ThisExpr(c_arg)
+    // The classes used are just the class of 'this' itself.
+    let classes_used = gather_unique_classes_recursive(c_arg, UNil())
+    EWithContext(this_expr, MSNil()) tracking (
+        vars: VNil(),
+        eclasses: classes_used,
+        typp: c_arg
+    )
+}
+
+// Generates a variable expression within a context.
+generator makevarexpr(n_arg: varids, c_arg: #Class) -> #ExpressionWithContext = {
+    let var_expr = VarExpr(n_arg, c_arg)
+    let initial_var_usage = VCons(c_arg, n_arg, VNil())
+    let classes_used = gather_unique_classes_recursive(c_arg, UNil())
+    EWithContext(var_expr, MSNil()) tracking (
+        vars: initial_var_usage,
+        eclasses: classes_used,
+        typp: c_arg
+    )
+}
+
+// Generates a constructor call expression, provided a fully-filled argument context.
+generator makeconstr(c_class_to_construct_arg: #Class,
+                     pf_context_val: #PartlyFilledWithContext) -> #ExpressionWithContext = {
+    // Destructure the context to get the argument payload and method set.
+    filter PWithContext(filled_args_payload, method_set_from_pf_context) is pf_context_val
+    // This generator only runs if all arguments have been provided.
+    if (is_filled(filled_args_payload)) {
+        // Convert the filled argument payload into a proper ExprList.
+        let arg_expr_list = into_expr_list(filled_args_payload)
+        let ctor_expr = CtorCallExpr(c_class_to_construct_arg, arg_expr_list)
+        // The final variable usage and class usage are taken from the argument context.
+        let final_vars = pf_context_val.vars 
+        let classes_from_constructor_def = gather_unique_classes_recursive(c_class_to_construct_arg, UNil())
+        let final_eclasses = union_class_usage(classes_from_constructor_def, pf_context_val.eclasses)
+        // Create the final expression with its full context.
+        EWithContext(ctor_expr, method_set_from_pf_context) tracking (
+            vars: final_vars,
+            eclasses: final_eclasses,
+            typp: c_class_to_construct_arg
+        )
+    }
+}
+
+// Creates an empty "PartlyFilled" context for building up arguments for a constructor call.
+// It inspects the fields of the class `c_arg` to determine the types of arguments required.
+generator makepfforconstr(c_arg: #Class) -> #PartlyFilledWithContext = {
+    let class_fieldList = get_fieldList(c_arg)
+    // Convert the list of field types into a list of empty argument slots.
+    let partly_filled_args = fieldList_to_partly_filled(class_fieldList)
+    PWithContext(partly_filled_args, MSNil()) tracking (
+        vars: VNil(), 
+        eclasses: c_arg.classesused
+    )
+}
+
+// Checks if two methods conflict.
+// A conflict occurs if they are not the same method but share the same name and receiver type.
+def are_methods_conflicting(m1: Method, m2: Method) -> Bool = {
+    filter FJMethod(sig1, a) is m1
+    filter FJMethod(sig2, b) is m2
+
+    if (m1 != m2) {
+        filter MethodSignature(method_name1, receiver_type1, c, d) is sig1
+        filter MethodSignature(method_name2, receiver_type2, e, f) is sig2
+
+        if (method_name1 != method_name2) {
+            false
+        } else {
+            if (receiver_type1 == receiver_type2) {
+                true // Same name, same receiver type -> Conflict
+            } else {
+                false
+            }
+        }
+    } else {
+        false // It's the same method, no conflict.
+    }
+}
+
+// Checks if a single `method_to_check` conflicts with any method in the `ms` MethodSet.
+def check_one_method_against_set(method_to_check: Method, ms: MethodSet) -> Bool = {
+    ms match {
+        | MSNil() => false
+        | MSCons(head_method_in_set, tail_set) => {
+            if (are_methods_conflicting(method_to_check, head_method_in_set)) {
+                true
+            } else {
+                check_one_method_against_set(method_to_check, tail_set)
+            }
+        }
+    }
+}
+
+// Checks if there are any conflicts between two method sets, `ms1` and `ms2`.
+def check_method_set_conflict(ms1: MethodSet, ms2: MethodSet) -> Bool = {
+     ms1 match {
+        | MSNil() => false
+        | MSCons(head_m1, tail_m1) => {
+            // Check the head of ms1 against all of ms2.
+            if (check_one_method_against_set(head_m1, ms2)) {
+                true
+            } else {
+                // If no conflict, continue with the tail of ms1.
+                check_method_set_conflict(tail_m1, ms2)
+            }
+        }
+    }
+}
+
+// Finds the first empty slot in a `PartlyFilled` list and fills it with the provided expression.
+// This is how argument lists are constructed one argument at a time.
+def do_fill_first_empty_slot(
+    current_pf_list: PartlyFilled,
+    expr_payload_from_e: Expression,
+    type_of_e: Class
+) -> PartlyFilled = {
+    current_pf_list match {
+        | PFConsFilled(slot_class, slot_expr, rest_list) => {
+            // This slot is already filled, so recurse on the rest of the list.
+            PFConsFilled(slot_class, slot_expr, do_fill_first_empty_slot(rest_list, expr_payload_from_e, type_of_e))
+        }
+        | PFConsEmpty(expected_slot_type, rest_list_after_empty) => {
+            // Found an empty slot. Check if the expression's type matches the expected type.
+            if (type_of_e == expected_slot_type) {
+                // Type matches, so fill the slot and return the new list.
+                PFConsFilled(expected_slot_type, expr_payload_from_e, rest_list_after_empty)
+            }
+        }
+    }
+}
+
+def append_method_sets(ms1: MethodSet, ms2: MethodSet) -> MethodSet = {
+    ms1 match {
+        | MSNil() => ms2
+        | MSCons(h, t) => MSCons(h, append_method_sets(t, ms2))
+    }
+}
+
+// Fills the next available argument slot in a `PartlyFilledWithContext`.
+// It takes a partially filled context (`pf_ctx`) and an expression context (`e_ctx`)
+// that provides the argument to be inserted.
+generator fillinpartlyfilled(pf_ctx: #PartlyFilledWithContext,
+                             e_ctx: #ExpressionWithContext) -> #PartlyFilledWithContext = {
+    // Destructure the inputs to get their payloads and method sets.
+    filter PWithContext(current_pf_structure, pf_method_set) is pf_ctx
+    filter EWithContext(expr_payload_from_e, e_method_set) is e_ctx
+
+    // Fail if the method sets of the argument form and the new argument expression conflict.
+    if (check_method_set_conflict(pf_method_set, e_method_set)) {
+        fail
+    } else {
+        // Fill the first empty slot with the new expression.
+        let new_pf_structure = do_fill_first_empty_slot(current_pf_structure, expr_payload_from_e, e_ctx.typp)
+        // Merge the method sets, variable usages, and class usages from both contexts.
+        let combined_method_set = append_method_sets(pf_method_set, e_method_set)
+        let result_vars = fj_concat_var_usage(pf_ctx.vars, e_ctx.vars)
+        let result_eclasses = union_class_usage(pf_ctx.eclasses, e_ctx.eclasses)
+        // Create the new, more-filled context.
+        PWithContext(new_pf_structure, combined_method_set) tracking (
+            vars: result_vars,
+            eclasses: result_eclasses
+        )
+    }
+}
+
+// Generates a field access expression.
+generator makefield(e_ctx_val: #ExpressionWithContext, f_idx_arg: numfields) -> #ExpressionWithContext = {
+    filter EWithContext(actual_receiver_expr, method_set_in_e_ctx) is e_ctx_val
+
+    // Determine the type of the receiver expression.
+    let receiver_class = e_ctx_val.typp 
+    // Get the list of fields for that class.
+    let class_fieldList = get_fieldList(receiver_class)
+    // Find the type of the specific field being accessed.
+    let actual_field_type = get_nth_field_type(class_fieldList, f_idx_arg)
+    let field_access_expr = FieldAccessExpr(actual_receiver_expr, f_idx_arg)
+
+    // The new expression context has the same vars and eclasses, but its type (`typp`)
+    // is now the type of the field that was accessed.
+    EWithContext(field_access_expr, method_set_in_e_ctx) tracking (
+        vars: e_ctx_val.vars,
+        eclasses: e_ctx_val.eclasses,
+        typp: actual_field_type
+    )
+}
+
+// Converts a VarUsage list (tracking variable usage) into a ClassList (list of types).
+// This is used to get the type signature of a method's arguments.
+def varusage_to_ClassList_for_args(vu: VarUsage) -> ClassList = {
+    vu match {
+        | VNil() => UNil()
+        | VCons(ty, a, rest_vu) => {
+            let rest_cu = varusage_to_ClassList_for_args(rest_vu)
+            add_class_if_not_member(ty, rest_cu)
+        }
+    }
+}
+
+// Adds a new method definition to an existing method set.
+generator addtomethodset(
+    existing_ms_val: #MethodSet, 
+    new_method_id: nummethods, 
+    receiver_class_ctx: #Class, 
+    body_expr_ctx: #ExpressionWithContext
+) -> #MethodSet = {
+    filter EWithContext(body_expression, body_expr_method_set) is body_expr_ctx 
+  
+    // Fail if the body's method set conflicts with the existing method set.
+    if (check_method_set_conflict(existing_ms_val, body_expr_method_set)) {
+        fail
+    } else {
+        // Determine the method's signature from the body's context.
+        let arg_types_as_cu = varusage_to_ClassList_for_args(body_expr_ctx.vars)
+        let return_type_as_class = body_expr_ctx.typp
+        let new_method_signature = MethodSignature(new_method_id, receiver_class_ctx, arg_types_as_cu, return_type_as_class)
+        let new_method = FJMethod(new_method_signature, body_expression)
+        
+        // Combine the method sets and check for conflicts with the new method.
+        let combined_base_ms = append_method_sets(existing_ms_val, body_expr_method_set)
+        if (check_one_method_against_set(new_method, combined_base_ms)) {
+            fail
+        } else {
+            // If no conflicts, construct the final method set and its tracking info.
+            let final_method_set_payload = MSCons(new_method, combined_base_ms)
+            // Union all class usages from the existing set, the body, the receiver, and the arguments.
+            let ec_from_existing_ms = existing_ms_val.eclasses
+            let ec_from_body_expr = body_expr_ctx.eclasses
+            let ec_temp1 = union_class_usage(ec_from_existing_ms, ec_from_body_expr) 
+            let ec_from_receiver = gather_unique_classes_recursive(receiver_class_ctx, UNil())
+            let ec_temp2 = union_class_usage(ec_temp1, ec_from_receiver)
+            let final_tracking_eclasses = union_class_usage(ec_temp2, arg_types_as_cu)
+            final_method_set_payload tracking (eclasses: final_tracking_eclasses)
+        }
+    }
+}
+
+// Searches a method set for a method with a specific name and receiver type.
+def find_method_in_set(target_method_name: nummethods, target_receiver_type: Class, current_ms: MethodSet) -> MethodInfo = {
+    filter MSCons(method, rest_ms) is current_ms
+    filter FJMethod(extracted_sig_info, a) is method
+    filter MethodSignature(m_name, recv_type, b, c) is extracted_sig_info
+    if (m_name != target_method_name) { 
+        // Name doesn't match, keep searching in the tail.
+        find_method_in_set(target_method_name, target_receiver_type, rest_ms)
+    } else {
+        // Name matches, now check receiver type.
+        if (recv_type == target_receiver_type) {
+            // Found it.
+            extracted_sig_info
+        } else {
+            // Name matched but receiver didn't, keep searching.
+            find_method_in_set(target_method_name, target_receiver_type, rest_ms)
+        }
+    }
+}
+
+
+// Converts a ClassList (representing argument types) into a PartlyFilled list of empty slots.
+def ClassList_to_partlyfilled(cu: ClassList) -> PartlyFilled = {
+    cu match {
+        | UNil() => PFNil()
+        | UCons(arg_class_type, rest_cu) => {
+            PFConsEmpty(arg_class_type, ClassList_to_partlyfilled(rest_cu))
+        }
+    }
+}
+
+// Creates an empty "PartlyFilled" context for a method call.
+// It finds the method signature to determine the required argument types.
+generator makepfformethodcall(
+    pf_receiver_class_ctx: #Class, 
+    mn_method_name: nummethods, 
+    ms_val: #MethodSet
+) -> #PartlyFilledWithContext = {
+    // Find the method in the set to get its signature.
+    let found_method_info = find_method_in_set(mn_method_name, pf_receiver_class_ctx, ms_val)
+    filter MethodSignature(a, b, arg_types_cu, c) is found_method_info    
+    // Create an empty argument form based on the method's required argument types.
+    let partly_filled_for_args = ClassList_to_partlyfilled(arg_types_cu)
+    PWithContext(partly_filled_for_args, ms_val) tracking (
+        vars: VNil(),
+        eclasses: ms_val.eclasses
+    )
+}
+
+// Generates an empty method set.
+generator makeemptymethodset() -> #MethodSet = {
+    MSNil() tracking (eclasses: UNil())
+}
+
+def length_method_set(ms: MethodSet) -> Int = {
+    ms match {
+        | MSNil() => 0
+        | MSCons(_, tail_ms) => (1 + length_method_set(tail_ms))
+    }
+}
+
+def calculate_expr_list_size(el: ExprList) -> Int = {
+    el match {
+        | ENil() => 0
+        | ECons(head_e, tail_el) => (calculate_expr_size(head_e) + calculate_expr_list_size(tail_el))
+    }
+}
+
+def calculate_expr_size(expr_val: Expression) -> Int = {
+    expr_val match {
+        | ThisExpr(_) => 1
+        | VarExpr(a, b) => 1
+        | CtorCallExpr(_, arg_list) => (1 + calculate_expr_list_size(arg_list))
+        | FieldAccessExpr(receiver_e, a) => (1 + calculate_expr_size(receiver_e))
+        | MethodCallExpr(receiver_e, b, arg_list) => (1 + calculate_expr_size(receiver_e) + calculate_expr_list_size(arg_list))
+    }
+}
+
+def length_var_usage(vu: VarUsage) -> Int = {
+    vu match {
+        | VNil() => 0
+        | VCons(a, b, tail_vu) => (1 + length_var_usage(tail_vu))
+    }
+}
+
+def MethodSet.bound -> nummethods = {
+    length_method_set(self)
+}
+
+def ExpressionWithContext.bound -> numclasses = {
+    length_class_usage(self.eclasses)
+}
+
+def ExpressionWithContext.bound -> esize = {
+    self match {
+        | EWithContext(the_actual_expr, a) => calculate_expr_size(the_actual_expr)
+    }
+}
+
+def ExpressionWithContext.bound -> numvars = {
+    length_var_usage(self.vars)
+}
+
+def PartlyFilledWithContext.bound -> numclasses = {
+    length_class_usage(self.eclasses)
+}
+
+unify (e1 e2 : #ExpressionWithContext) when {
+    if (e1.vars == e2.vars) {
+        if (e1.eclasses == e2.eclasses) {
+            if (e1.typp == e2.typp) {
+                if (e1.numclasses == e2.numclasses) {
+                    e1.esize == e2.esize
+                }
+            }
+        }
+    }
+}

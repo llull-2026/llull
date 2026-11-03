@@ -1,0 +1,827 @@
+// Heph: a Java-like core language with a fixed prelude, generic classes with
+// declaration-site variance and bounded type parameters, methods, and lambdas.
+//
+// This follows llull's heph (llull/langs/heph): the typing rules are those of
+// bug-suite/hephTypechecker.ml, and the class-formation rules (variance and
+// bounds) are those of abstract/hephPrototerms.ml.
+//
+// Generation is staged. Types are generated freely and checked where they are
+// used. A class table grows one class or one field at a time, a program extends
+// a class table with methods, and terms are typed against a program. A Heph
+// value is a program together with its main term.
+//
+// Predicates (functions returning Bool) either return true or fail, and a
+// failed predicate counts as false.
+
+// Bounds a..b include b. These defaults saturate in about six minutes; change them
+// from the command line (e.g. -esize 4).
+bound tsize = 1..2       // nodes in a type
+bound numtparams = 0..1  // type parameters of a class
+bound numclasses = 0..1  // synthesized classes in a class table
+bound numfields = 0..1   // fields declared across a class table
+bound nummethods = 0..1  // methods in a program
+bound numargs = 0..1     // arguments of a constructor or method call
+bound esize = 0..2       // nodes in a term (0 for empty argument lists)
+
+bound classid = 0..0     // C0, C1, ...
+bound tparamid = 0..0    // P0, P1, ...
+bound fieldid = 0..0     // index into a class's fields, inherited ones first
+bound methodid = 0..0    // m0, m1, ...
+bound varid = 0..1       // x0, x1, ...
+
+// ---------------------------------------------------------------------------
+// Types
+
+datatype ClassRef = {
+  | ObjectClass
+  | NumberClass
+  | IntegerClass
+  | StringClass
+  | BooleanClass
+  | FunctionClass
+  | Synth(classid)
+}
+
+datatype Type bounded_by (tsize: tsize) tracking () = {
+  | Cls(ClassRef, TypeList)
+  | Param(tparamid)
+}
+
+datatype TypeList = {
+  | TNil
+  | TCons(Type, TypeList)
+}
+
+def type_size(t: Type) -> Int = {
+  t match {
+    | Cls(c, args) => 1 + types_size(args)
+    | Param(i) => 1
+  }
+}
+
+def types_size(ts: TypeList) -> Int = {
+  ts match {
+    | TNil() => 0
+    | TCons(t, rest) => type_size(t) + types_size(rest)
+  }
+}
+
+def length_types(ts: TypeList) -> Int = {
+  ts match {
+    | TNil() => 0
+    | TCons(t, rest) => 1 + length_types(rest)
+  }
+}
+
+def Type.bound -> tsize = {
+  type_size(self)
+}
+
+generator makeobject() -> #Type = {
+  Cls(ObjectClass(), TNil()) tracking ()
+}
+
+generator makenumber() -> #Type = {
+  Cls(NumberClass(), TNil()) tracking ()
+}
+
+generator makeinteger() -> #Type = {
+  Cls(IntegerClass(), TNil()) tracking ()
+}
+
+generator makestring() -> #Type = {
+  Cls(StringClass(), TNil()) tracking ()
+}
+
+generator makeboolean() -> #Type = {
+  Cls(BooleanClass(), TNil()) tracking ()
+}
+
+generator makefunction(a: #Type, b: #Type) -> #Type = {
+  Cls(FunctionClass(), TCons(a, TCons(b, TNil()))) tracking ()
+}
+
+generator makeclass(c: classid) -> #Type = {
+  Cls(Synth(c), TNil()) tracking ()
+}
+
+// Adds a type argument to a synthesized class type; arity is checked by wf.
+generator maketypearg(t: #Type, a: #Type) -> #Type = {
+  filter Cls(Synth(c), args) is t
+  Cls(Synth(c), append_types(args, TCons(a, TNil()))) tracking ()
+}
+
+generator makeparam(i: tparamid) -> #Type = {
+  Param(i) tracking ()
+}
+
+def append_types(ts1: TypeList, ts2: TypeList) -> TypeList = {
+  ts1 match {
+    | TNil() => ts2
+    | TCons(t, rest) => TCons(t, append_types(rest, ts2))
+  }
+}
+
+def nth_type(ts: TypeList, i: Int) -> Type = {
+  filter TCons(t, rest) is ts
+  if (i == 0) { t } else { nth_type(rest, i - 1) }
+}
+
+def larger(a: Int, b: Int) -> Int = {
+  if (a > b) { a } else { b }
+}
+
+// The number of class type parameters a type needs to be in scope.
+def scope_of(t: Type) -> Int = {
+  t match {
+    | Cls(c, args) => scope_of_types(args)
+    | Param(i) => i + 1
+  }
+}
+
+def scope_of_types(ts: TypeList) -> Int = {
+  ts match {
+    | TNil() => 0
+    | TCons(t, rest) => larger(scope_of(t), scope_of_types(rest))
+  }
+}
+
+// Replaces each Pi in t with the i-th type in args.
+def subst(t: Type, args: TypeList) -> Type = {
+  t match {
+    | Cls(c, targs) => Cls(c, subst_types(targs, args))
+    | Param(i) => nth_type(args, i)
+  }
+}
+
+def subst_types(ts: TypeList, args: TypeList) -> TypeList = {
+  ts match {
+    | TNil() => TNil()
+    | TCons(t, rest) => TCons(subst(t, args), subst_types(rest, args))
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Class tables
+
+datatype Variance bounded_by () tracking () = {
+  | Inv
+  | Co
+  | Contra
+}
+
+generator makeinv() -> #Variance = {
+  Inv() tracking ()
+}
+
+generator makeco() -> #Variance = {
+  Co() tracking ()
+}
+
+generator makecontra() -> #Variance = {
+  Contra() tracking ()
+}
+
+// A type parameter: its variance and its upper bound.
+datatype TParam = {
+  | TP(Variance, Type)
+}
+
+// Type parameters P0, P1, ... in order.
+datatype TParams = {
+  | TPNil
+  | TPCons(TParam, TParams)
+}
+
+def length_tparams(tps: TParams) -> Int = {
+  tps match {
+    | TPNil() => 0
+    | TPCons(tp, rest) => 1 + length_tparams(rest)
+  }
+}
+
+def append_tparam(tps: TParams, tp: TParam) -> TParams = {
+  tps match {
+    | TPNil() => TPCons(tp, TPNil())
+    | TPCons(tp', rest) => TPCons(tp', append_tparam(rest, tp))
+  }
+}
+
+def nth_tparam(tps: TParams, i: Int) -> TParam = {
+  filter TPCons(tp, rest) is tps
+  if (i == 0) { tp } else { nth_tparam(rest, i - 1) }
+}
+
+// [Pi, ..., P(n-1)]
+def own_params(i: Int, n: Int) -> TypeList = {
+  if (i < n) { TCons(Param(i), own_params(i + 1, n)) } else { TNil() }
+}
+
+datatype ClassDecl = {
+  | Root                             // Object, which has no parent
+  | Decl(TParams, Type, TypeList)    // type parameters, parent, own fields
+}
+
+// Class Ci is the i-th declaration.
+datatype Classes = {
+  | CNil
+  | CCons(ClassDecl, Classes)
+}
+
+datatype ClassTable bounded_by (numclasses: numclasses, numfields: numfields) tracking () = {
+  | Table(Classes)
+}
+
+def length_classes(cs: Classes) -> Int = {
+  cs match {
+    | CNil() => 0
+    | CCons(d, rest) => 1 + length_classes(rest)
+  }
+}
+
+def count_fields(cs: Classes) -> Int = {
+  cs match {
+    | CNil() => 0
+    | CCons(Decl(tps, parent, fields), rest) => length_types(fields) + count_fields(rest)
+  }
+}
+
+def table_classes(ct: ClassTable) -> Int = {
+  filter Table(cs) is ct
+  length_classes(cs)
+}
+
+def table_fields(ct: ClassTable) -> Int = {
+  filter Table(cs) is ct
+  count_fields(cs)
+}
+
+def ClassTable.bound -> numclasses = {
+  table_classes(self)
+}
+
+def ClassTable.bound -> numfields = {
+  table_fields(self)
+}
+
+def nth_class(cs: Classes, i: Int) -> ClassDecl = {
+  filter CCons(d, rest) is cs
+  if (i == 0) { d } else { nth_class(rest, i - 1) }
+}
+
+def snoc_class(cs: Classes, d: ClassDecl) -> Classes = {
+  cs match {
+    | CNil() => CCons(d, CNil())
+    | CCons(d', rest) => CCons(d', snoc_class(rest, d))
+  }
+}
+
+def replace_class(cs: Classes, i: Int, d: ClassDecl) -> Classes = {
+  filter CCons(d', rest) is cs
+  if (i == 0) { CCons(d, rest) } else { CCons(d', replace_class(rest, i - 1, d)) }
+}
+
+// The prelude: Object, Number <: Object, Integer <: Number, String, Boolean,
+// and Function<-A, +B>, whose parameters are bounded by themselves, i.e. not
+// bounded at all.
+def decl_of(ct: ClassTable, c: ClassRef) -> ClassDecl = {
+  c match {
+    | ObjectClass() => Root()
+    | NumberClass() => Decl(TPNil(), Cls(ObjectClass(), TNil()), TNil())
+    | IntegerClass() => Decl(TPNil(), Cls(NumberClass(), TNil()), TNil())
+    | StringClass() => Decl(TPNil(), Cls(ObjectClass(), TNil()), TNil())
+    | BooleanClass() => Decl(TPNil(), Cls(ObjectClass(), TNil()), TNil())
+    | FunctionClass() => Decl(TPCons(TP(Contra(), Param(0)), TPCons(TP(Co(), Param(1)), TPNil())), Cls(ObjectClass(), TNil()), TNil())
+    | Synth(i) => {
+      filter Table(cs) is ct
+      nth_class(cs, i)
+    }
+  }
+}
+
+def tparams_of(ct: ClassTable, c: ClassRef) -> TParams = {
+  let d = decl_of(ct, c)
+  d match {
+    | Root() => TPNil()
+    | Decl(tps, parent, fields) => tps
+  }
+}
+
+// The parent of a class type, with its arguments substituted in.
+def supertype(ct: ClassTable, t: Type) -> Type = {
+  filter Cls(c, args) is t
+  let d = decl_of(ct, c)
+  filter Decl(tps, parent, fields) is d
+  subst(parent, args)
+}
+
+// The arguments of the ancestor of t whose class is c.
+def upcast(ct: ClassTable, t: Type, c: ClassRef) -> TypeList = {
+  filter Cls(c', args) is t
+  if (c' == c) { args } else { upcast(ct, supertype(ct, t), c) }
+}
+
+// All fields of a class type, inherited ones first.
+def fields_of(ct: ClassTable, t: Type) -> TypeList = {
+  filter Cls(c, args) is t
+  let d = decl_of(ct, c)
+  d match {
+    | Root() => TNil()
+    | Decl(tps, parent, own) => append_types(fields_of(ct, subst(parent, args)), subst_types(own, args))
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Subtyping and well-formedness
+
+def subtype(ct: ClassTable, s: Type, t: Type) -> Bool = {
+  if (s == t) {
+    true
+  } else {
+    filter Cls(c, targs) is t
+    contained(ct, tparams_of(ct, c), upcast(ct, s, c), targs)
+  }
+}
+
+def subtypes(ct: ClassTable, ss: TypeList, ts: TypeList) -> Bool = {
+  ss match {
+    | TNil() => {
+      filter TNil() is ts
+      true
+    }
+    | TCons(s, srest) => {
+      filter TCons(t, trest) is ts
+      subtype(ct, s, t) && subtypes(ct, srest, trest)
+    }
+  }
+}
+
+// Whether the arguments ss are contained in ts under the variances of tps.
+def contained(ct: ClassTable, tps: TParams, ss: TypeList, ts: TypeList) -> Bool = {
+  tps match {
+    | TPNil() => {
+      filter TNil() is ss
+      filter TNil() is ts
+      true
+    }
+    | TPCons(TP(v, b), rest) => {
+      filter TCons(s, srest) is ss
+      filter TCons(t, trest) is ts
+      contained_arg(ct, v, s, t) && contained(ct, rest, srest, trest)
+    }
+  }
+}
+
+def contained_arg(ct: ClassTable, v: Variance, s: Type, t: Type) -> Bool = {
+  v match {
+    | Inv() => if (s == t) { true }
+    | Co() => subtype(ct, s, t)
+    | Contra() => subtype(ct, t, s)
+  }
+}
+
+// Classes exist, arities match, and arguments satisfy their bounds. Whether
+// the type parameters are in scope is checked separately, with scope_of.
+def wf(ct: ClassTable, t: Type) -> Bool = {
+  t match {
+    | Param(i) => true
+    | Cls(c, args) => wf_types(ct, args) && within_bounds(ct, tparams_of(ct, c), args, args)
+  }
+}
+
+def wf_types(ct: ClassTable, ts: TypeList) -> Bool = {
+  ts match {
+    | TNil() => true
+    | TCons(t, rest) => wf(ct, t) && wf_types(ct, rest)
+  }
+}
+
+def within_bounds(ct: ClassTable, tps: TParams, ts: TypeList, args: TypeList) -> Bool = {
+  tps match {
+    | TPNil() => {
+      filter TNil() is ts
+      true
+    }
+    | TPCons(TP(v, b), rest) => {
+      filter TCons(t, trest) is ts
+      subtype(ct, t, subst(b, args)) && within_bounds(ct, rest, trest, args)
+    }
+  }
+}
+
+def flip(v: Variance) -> Variance = {
+  v match {
+    | Inv() => Inv()
+    | Co() => Contra()
+    | Contra() => Co()
+  }
+}
+
+// The variance of a position of variance inner nested in one of variance outer.
+def compose(outer: Variance, inner: Variance) -> Variance = {
+  outer match {
+    | Inv() => Inv()
+    | Co() => inner
+    | Contra() => flip(inner)
+  }
+}
+
+// Whether a parameter declared with variance decl may occur at position pos.
+def allowed(pos: Variance, decl: Variance) -> Bool = {
+  if (decl == Inv()) { true } else { if (decl == pos) { true } }
+}
+
+// Whether t occurs at position pos of a class with type parameters tps,
+// which also checks that its parameters are in scope.
+def vcheck(ct: ClassTable, tps: TParams, pos: Variance, t: Type) -> Bool = {
+  t match {
+    | Param(i) => {
+      let tp = nth_tparam(tps, i)
+      filter TP(decl, b) is tp
+      allowed(pos, decl)
+    }
+    | Cls(c, args) => vcheck_args(ct, tps, pos, tparams_of(ct, c), args)
+  }
+}
+
+def vcheck_args(ct: ClassTable, tps: TParams, pos: Variance, ctps: TParams, args: TypeList) -> Bool = {
+  ctps match {
+    | TPNil() => true
+    | TPCons(TP(v, b), rest) => {
+      filter TCons(a, arest) is args
+      vcheck(ct, tps, compose(pos, v), a) && vcheck_args(ct, tps, pos, rest, arest)
+    }
+  }
+}
+
+generator makeemptytable() -> #ClassTable = {
+  Table(CNil()) tracking ()
+}
+
+// The type parameters of a class about to be added to a class table.
+datatype ClassHeader bounded_by (numtparams: numtparams) tracking (table: ClassTable) = {
+  | Header(TParams)
+}
+
+def header_tparams(h: ClassHeader) -> Int = {
+  filter Header(tps) is h
+  length_tparams(tps)
+}
+
+def ClassHeader.bound -> numtparams = {
+  header_tparams(self)
+}
+
+generator makeheader(ct: #ClassTable expanding numclasses) -> #ClassHeader = {
+  Header(TPNil()) tracking (table: ct)
+}
+
+// Adds the next type parameter. Its bound may mention only earlier ones.
+generator addtparam(h: #ClassHeader expanding numtparams, v: #Variance, b: #Type) -> #ClassHeader = {
+  filter Header(tps) is h
+  if (scope_of(b) <= length_tparams(tps)) {
+    if (wf(h.table, b)) {
+      Header(append_tparam(tps, TP(v, b))) tracking (table: h.table)
+    }
+  }
+}
+
+// Declares a new class, without fields. Its parent's arguments occur at the
+// parent's declared variances, and nothing may mention the class itself.
+generator addclass(h: #ClassHeader, parent: #Type) -> #ClassTable = {
+  filter Header(tps) is h
+  filter Table(cs) is h.table
+  filter Cls(c, args) is parent
+  if (wf(h.table, parent) && vcheck(h.table, tps, Co(), parent)) {
+    Table(snoc_class(cs, Decl(tps, parent, TNil()))) tracking ()
+  }
+}
+
+// Adds a field to class c. Fields are invariant positions.
+generator addfield(ct: #ClassTable expanding numfields, c: classid, t: #Type) -> #ClassTable = {
+  filter Table(cs) is ct
+  let d = nth_class(cs, c)
+  filter Decl(tps, parent, fields) is d
+  if (wf(ct, t) && vcheck(ct, tps, Inv(), t)) {
+    Table(replace_class(cs, c, Decl(tps, parent, append_types(fields, TCons(t, TNil()))))) tracking ()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Programs and terms
+
+// Variables bound to their types, sorted by variable.
+datatype Env = {
+  | Nil
+  | Bind(varid, Type, Env)
+}
+
+def lookup(env: Env, x: varid) -> Type = {
+  filter Bind(y, t, rest) is env
+  if (x == y) { t } else { lookup(rest, x) }
+}
+
+def remove(env: Env, x: varid) -> Env = {
+  env match {
+    | Nil() => Nil()
+    | Bind(y, t, rest) => if (x == y) { rest } else { Bind(y, t, remove(rest, x)) }
+  }
+}
+
+// The union of two environments; fails if they give a variable two types.
+def merge(env1: Env, env2: Env) -> Env = {
+  env1 match {
+    | Nil() => env2
+    | Bind(x, t, rest1) => env2 match {
+      | Nil() => env1
+      | Bind(y, u, rest2) =>
+        if (x < y) {
+          Bind(x, t, merge(rest1, env2))
+        } else {
+          if (y < x) {
+            Bind(y, u, merge(env1, rest2))
+          } else {
+            if (t == u) { Bind(x, t, merge(rest1, rest2)) }
+          }
+        }
+    }
+  }
+}
+
+def types_of(env: Env) -> TypeList = {
+  env match {
+    | Nil() => TNil()
+    | Bind(x, t, rest) => TCons(t, types_of(rest))
+  }
+}
+
+def vcheck_env(ct: ClassTable, tps: TParams, pos: Variance, env: Env) -> Bool = {
+  env match {
+    | Nil() => true
+    | Bind(x, t, rest) => vcheck(ct, tps, pos, t) && vcheck_env(ct, tps, pos, rest)
+  }
+}
+
+// Function.apply, or the method with the given label.
+datatype MethodRef bounded_by () tracking () = {
+  | Apply
+  | M(methodid)
+}
+
+generator makeapply() -> #MethodRef = {
+  Apply() tracking ()
+}
+
+generator makemethodref(m: methodid) -> #MethodRef = {
+  M(m) tracking ()
+}
+
+// A method of class `owner`, with `this` and its parameters as variables.
+datatype Method = {
+  | Meth(classid, varid, Env, Type, Term)  // owner, this, parameters, return type, body
+}
+
+// Method mi is the i-th method. Labels are unique, so nothing is overridden.
+datatype Methods = {
+  | MNil
+  | MCons(Method, Methods)
+}
+
+datatype Program bounded_by (nummethods: nummethods) tracking () = {
+  | Prog(ClassTable, Methods)
+}
+
+def length_methods(ms: Methods) -> Int = {
+  ms match {
+    | MNil() => 0
+    | MCons(m, rest) => 1 + length_methods(rest)
+  }
+}
+
+def program_methods(p: Program) -> Int = {
+  filter Prog(ct, ms) is p
+  length_methods(ms)
+}
+
+def Program.bound -> nummethods = {
+  program_methods(self)
+}
+
+def nth_method(ms: Methods, i: Int) -> Method = {
+  filter MCons(m, rest) is ms
+  if (i == 0) { m } else { nth_method(rest, i - 1) }
+}
+
+def snoc_method(ms: Methods, m: Method) -> Methods = {
+  ms match {
+    | MNil() => MCons(m, MNil())
+    | MCons(m', rest) => MCons(m', snoc_method(rest, m))
+  }
+}
+
+// Parameter types and return type.
+datatype Signature = {
+  | Sig(TypeList, Type)
+}
+
+// The signature of method m as seen from a receiver of type t.
+def lookup_method(ct: ClassTable, ms: Methods, t: Type, m: MethodRef) -> Signature = {
+  m match {
+    | Apply() => {
+      let args = upcast(ct, t, FunctionClass())
+      filter TCons(a, rest) is args
+      filter TCons(b, rest') is rest
+      Sig(TCons(a, TNil()), b)
+    }
+    | M(i) => {
+      let meth = nth_method(ms, i)
+      filter Meth(owner, this, params, ret, body) is meth
+      let args = upcast(ct, t, Synth(owner))
+      Sig(subst_types(types_of(params), args), subst(ret, args))
+    }
+  }
+}
+
+// Free variables are named, and a lambda binds one of them. A term's scope is
+// how many class type parameters it mentions.
+//
+// The tracking is what makes a term replaceable: two terms with the same
+// tracking and size can stand in for each other anywhere, so running with
+// -u Term -u Args merges them. For that, a term must determine its tracking,
+// which is why the leaves (variables and empty argument lists) name their
+// program.
+datatype Term bounded_by (esize: esize) tracking (prog: Program, typ: Type, freevars: Env, scope: Int, size: Int) = {
+  | Var(Program, Type, varid)
+  | New(Type, Args)
+  | Field(Term, fieldid)
+  | Invoke(Term, MethodRef, Args)
+  | Lam(Type, varid, Term)
+}
+
+// Arguments of a constructor or method call, with their types. Their size is
+// that of all the arguments together.
+datatype Args bounded_by (numargs: numargs, esize: esize) tracking (prog: Program, typs: TypeList, freevars: Env, scope: Int, size: Int) = {
+  | ANil(Program)
+  | ACons(Term, Args)
+}
+
+def term_size(e: Term) -> Int = {
+  e match {
+    | Var(p, t, x) => 1
+    | New(t, args) => 1 + total_size(args)
+    | Field(e', f) => 1 + term_size(e')
+    | Invoke(e', m, args) => 1 + term_size(e') + total_size(args)
+    | Lam(t, x, e') => 1 + term_size(e')
+  }
+}
+
+def total_size(args: Args) -> Int = {
+  args match {
+    | ANil(p) => 0
+    | ACons(e, rest) => term_size(e) + total_size(rest)
+  }
+}
+
+def Term.bound -> esize = {
+  term_size(self)
+}
+
+def length_args(args: Args) -> Int = {
+  args match {
+    | ANil(p) => 0
+    | ACons(e, rest) => 1 + length_args(rest)
+  }
+}
+
+def Args.bound -> numargs = {
+  length_args(self)
+}
+
+def call_size(args: Args) -> Int = {
+  1 + total_size(args)
+}
+
+// Arguments are bounded by the size of the smallest term they can occur in.
+def Args.bound -> esize = {
+  call_size(self)
+}
+
+// Pairs of sizes (m, n) such that a node with parts of those sizes fits within
+// esize. Combining two parts joins on their sizes through Fits, so pairs too
+// large to combine are never formed.
+datatype Fits bounded_by (esize: esize) tracking () = {
+  | Fit(Int, Int)
+}
+
+def Fits.bound -> esize = {
+  filter Fit(m, n) is self
+  1 + m + n
+}
+
+generator makefit(m: esize, n: esize) -> #Fits = {
+  Fit(m, n) tracking ()
+}
+
+generator makeprogram(ct: #ClassTable) -> #Program = {
+  Prog(ct, MNil()) tracking ()
+}
+
+generator makevar(p: #Program, t: #Type, x: varid) -> #Term = {
+  filter Prog(ct, ms) is p
+  if (wf(ct, t)) {
+    Var(p, t, x) tracking (prog: p, typ: t, freevars: Bind(x, t, Nil()), scope: scope_of(t), size: 1)
+  }
+}
+
+// `this` in a method of class c, typed C<P0, ..., P(n-1)>. That type is not
+// well formed when C has type parameters, since no parameter is within a bound
+// (a parameter is a subtype only of itself), so makevar cannot make it.
+generator makethis(p: #Program, c: classid, x: varid) -> #Term = {
+  filter Prog(ct, ms) is p
+  let d = decl_of(ct, Synth(c))
+  filter Decl(tps, parent, fields) is d
+  let args = own_params(0, length_tparams(tps))
+  Var(p, Cls(Synth(c), args), x) tracking (prog: p, typ: Cls(Synth(c), args), freevars: Bind(x, Cls(Synth(c), args), Nil()), scope: scope_of_types(args), size: 1)
+}
+
+generator makenoargs(p: #Program) -> #Args = {
+  ANil(p) tracking (prog: p, typs: TNil(), freevars: Nil(), scope: 0, size: 0)
+}
+
+generator makeargs(e: #Term, rest: #Args, fit: #Fits) -> #Args = {
+  filter Fit(m, n) is fit
+  if (e.size == m) {
+    if (rest.size == n) {
+      if (e.prog == rest.prog) {
+        ACons(e, rest) tracking (prog: e.prog, typs: TCons(e.typ, rest.typs), freevars: merge(e.freevars, rest.freevars), scope: larger(e.scope, rest.scope), size: m + n)
+      }
+    }
+  }
+}
+
+generator makenew(t: #Type, args: #Args) -> #Term = {
+  filter Prog(ct, ms) is args.prog
+  if (wf(ct, t) && subtypes(ct, args.typs, fields_of(ct, t))) {
+    New(t, args) tracking (prog: args.prog, typ: t, freevars: args.freevars, scope: larger(scope_of(t), args.scope), size: args.size + 1)
+  }
+}
+
+generator makefield(e: #Term, f: fieldid) -> #Term = {
+  filter Prog(ct, ms) is e.prog
+  Field(e, f) tracking (prog: e.prog, typ: nth_type(fields_of(ct, e.typ), f), freevars: e.freevars, scope: e.scope, size: e.size + 1)
+}
+
+generator makeinvoke(e: #Term, m: #MethodRef, args: #Args, fit: #Fits) -> #Term = {
+  filter Fit(k, n) is fit
+  if (e.size == k) {
+    if (args.size == n) {
+      if (e.prog == args.prog) {
+        filter Prog(ct, ms) is e.prog
+        let sig = lookup_method(ct, ms, e.typ, m)
+        filter Sig(params, ret) is sig
+        if (subtypes(ct, args.typs, params)) {
+          Invoke(e, m, args) tracking (prog: e.prog, typ: ret, freevars: merge(e.freevars, args.freevars), scope: larger(e.scope, args.scope), size: 1 + k + n)
+        }
+      }
+    }
+  }
+}
+
+// Abstracts the free variable x of e.
+generator makelam(e: #Term, x: varid) -> #Term = {
+  let t = lookup(e.freevars, x)
+  Lam(t, x, e) tracking (prog: e.prog, typ: Cls(FunctionClass(), TCons(t, TCons(e.typ, TNil()))), freevars: remove(e.freevars, x), scope: e.scope, size: e.size + 1)
+}
+
+// Makes the body a method of class c, with `this` bound to the variable this
+// and every other free variable a parameter. Parameter types occur
+// contravariantly and the return type covariantly. The body may call only
+// methods declared before it.
+generator addmethod(p: #Program, c: classid, this: varid, body: #Term) -> #Program = {
+  if (body.prog == p) {
+    filter Prog(ct, ms) is p
+    let d = decl_of(ct, Synth(c))
+    filter Decl(tps, parent, fields) is d
+    let n = length_tparams(tps)
+    let params = remove(body.freevars, this)
+    if (lookup(body.freevars, this) == Cls(Synth(c), own_params(0, n))) {
+      if (body.scope <= n) {
+        if (vcheck_env(ct, tps, Contra(), params) && vcheck(ct, tps, Co(), body.typ)) {
+          Prog(ct, snoc_method(ms, Meth(c, this, params, body.typ, body))) tracking ()
+        }
+      }
+    }
+  }
+}
+
+// A whole program: its main term may have free variables, but not type
+// parameters.
+datatype Heph bounded_by () tracking () = {
+  | Main(Program, Term)
+}
+
+generator makemain(e: #Term) -> #Heph = {
+  if (e.scope == 0) {
+    Main(e.prog, e) tracking ()
+  }
+}
